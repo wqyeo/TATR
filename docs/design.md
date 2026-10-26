@@ -66,7 +66,9 @@ exec = ["cmake", "--build", "--preset", "dev"]
 5. Add task working directories resolved from the configuration file (implemented).
 6. Add task environment overrides with explicit inheritance and lookup semantics
    (implemented).
-7. Append literal runtime arguments to the requested task (proposed).
+7. Append literal runtime arguments to the requested task (implemented).
+8. Establish repeatable small-system resource measurements and propose budgets
+   (proposed).
 
 Each increment needs review before implementation. Tests should cover meaningful
 behavior as it is introduced. Parallel execution, caching, remote execution,

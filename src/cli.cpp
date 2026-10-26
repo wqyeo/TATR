@@ -15,7 +15,7 @@ constexpr std::string_view help = R"(tatr - That's Another Task Runner
 Usage:
   tatr [--file PATH] list
   tatr [--file PATH] plan TASK
-  tatr [--file PATH] run TASK
+  tatr [--file PATH] run TASK [-- ARG...]
   tatr --help
   tatr --version
 
@@ -23,6 +23,7 @@ Defaults to tatr.toml in the current directory; no parent-directory search.
 Run executes argument arrays directly, in dependency order, stopping on failure.
 Task cwd paths resolve from the configuration file's directory; absent inherits cwd.
 Task env tables override selected inherited variables for that child only.
+Arguments after -- are appended literally to the target command, not prerequisites.
 )";
 
 } // namespace
@@ -41,9 +42,16 @@ int run_cli(std::span<const std::string> arguments, std::ostream &out) {
     std::string command;
     std::string target;
     bool target_set = false;
+    std::span<const std::string> runtime_arguments;
     for (std::size_t i = 0; i < arguments.size(); ++i) {
         const std::string_view arg = arguments[i];
-        if (arg == "--file") {
+        if (arg == "--") {
+            if (command != "run" || !target_set || target.empty()) {
+                throw std::runtime_error("argument separator requires 'run TASK'; see --help");
+            }
+            runtime_arguments = arguments.subspan(i + 1);
+            break;
+        } else if (arg == "--file") {
             if (file_set) {
                 throw std::runtime_error("--file may only be supplied once");
             }
@@ -73,7 +81,7 @@ int run_cli(std::span<const std::string> arguments, std::ostream &out) {
     // Validate the complete file and plan before printing any task output.
     const auto config = load_config(file);
     if (command == "run") {
-        run_task(config, target);
+        run_task(config, target, runtime_arguments);
     } else if (command == "plan") {
         const auto order = plan_task(config, target);
         for (const auto &name : order) {

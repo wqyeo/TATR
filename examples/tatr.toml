@@ -1,5 +1,6 @@
 # Use --file /path/to/examples/tatr.toml from any directory.
 # Requires CMake and a native C++ toolchain on PATH.
+# Append CTest options with: run check -- --parallel 2
 version = 1
 
 [tasks.configure]

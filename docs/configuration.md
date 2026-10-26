@@ -61,7 +61,7 @@ tatr --help
 tatr --version
 tatr [--file PATH] list
 tatr [--file PATH] plan TASK
-tatr [--file PATH] run TASK
+tatr [--file PATH] run TASK [-- ARG...]
 ```
 
 With no arguments, print usage and return success. `--help` and `--version` are
@@ -70,7 +70,8 @@ those invocations are rejected.
 
 All three commands default to `tatr.toml` in the current working directory. There is no search
 in parent directories. `--file PATH` may appear before or after the command or target, at most
-once. Empty paths and an option supplied where a path is expected are rejected.
+once, before any runtime-argument separator. Empty paths and an option supplied
+where a path is expected are rejected.
 For a filename beginning with `--`, use an explicit path such as `./--tasks.toml`.
 
 Tasks are listed in bytewise UTF-8 key order, one per line:
@@ -86,7 +87,8 @@ first in the order declared in each `depends` array, includes each reachable tas
 once, and ends with the requested task. Unrelated tasks are omitted. For example,
 `plan check` above prints `build` then `check`. Descriptions are omitted.
 Unknown targets, a missing target, and extra arguments are errors. Names beginning
-with `-` cannot be passed as CLI targets; there is no `--` separator in this increment.
+with `-` cannot be passed as CLI targets. The run-only separator described below
+does not expand task-name syntax.
 
 The complete file is validated before listing/planning or launching any child, including
 missing dependencies and cycles in unrelated tasks. Errors do not produce a
@@ -96,6 +98,33 @@ errors include the path and, where available, a source line/column or field name
 `list` and `plan` never launch a child, even when tasks contain `exec` fields.
 
 ## Sequential execution
+
+### Runtime arguments
+
+`run TASK -- ARG...` appends the supplied strings after the target's declared exec
+arguments. For example, a configured `["ctest", "--preset", "dev"]` becomes
+`["ctest", "--preset", "dev", "--parallel", "2"]` when invoked with
+`run TASK -- --parallel 2`. The caller's shell determines which strings reach
+TATR; TATR does no further splitting, globbing, or interpolation.
+
+The separator is accepted only after a run target. Every following token belongs
+to the child, including empty strings, `--file`, `--help`, and another `--`.
+Options before the separator keep their existing meaning. A separator with no
+following tokens retains ordinary run behavior; an explicit empty string is one
+argument. Extra positional arguments without the separator, misplaced separators,
+and separators for list/plan are rejected with exit 2 before any child executes.
+
+Only the requested target receives runtime arguments. Prerequisites retain their
+declared commands, run once in dependency order, and retain their own cwd/env.
+Grouping targets reject a nonempty runtime argument list (even one empty string)
+with exit 2 before any prerequisites execute. The combined command lives in an
+owned temporary vector; the loaded configuration is never mutated.
+
+Native argument encoding and size limits apply to the final combined command.
+Launch/size failures return 2 and preserve earlier effects; child failures retain
+exit 1. Runtime arguments do not override the executable, cwd, or env fields.
+
+### Execution order and failures
 
 `run TASK` follows the same order as `plan TASK`. Each reachable task is processed
 once; tasks without `exec` succeed after their prerequisites and launch no process.

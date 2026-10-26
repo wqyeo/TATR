@@ -20,6 +20,7 @@ tatr --version
 tatr --file examples/tatr.toml list
 tatr --file examples/tatr.toml plan check
 tatr --file examples/tatr.toml run check
+tatr --file examples/tatr.toml run check -- --parallel 2
 ```
 
 `tatr list` reads `tatr.toml` in the current directory. It does not search parent
@@ -45,6 +46,11 @@ prints prerequisites in their declared order, each once, with the target last.
 `run TASK` executes that order; tasks without `exec` group their prerequisites.
 All commands validate the entire configuration first. `list` and `plan` execute
 nothing. See [configuration and CLI rules](docs/configuration.md).
+
+`run TASK -- ARG...` appends literal arguments to that task's configured command.
+Prerequisites keep their declared commands. After `--`, flags such as `--file`
+belong to the child. Grouping tasks accept no nonempty argument list; rejection
+happens before prerequisites run. An empty `--` tail keeps ordinary run behavior.
 
 Commands are argument arrays, with no implicit shell or expansion. Programs inherit
 your environment and standard I/O. Working directories are inherited unless `cwd`
@@ -124,8 +130,9 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - [Safety-hardening increment](docs/safety-hardening.md): completed approved scope.
 - [Working-directory increment](docs/task-working-directories.md): completed approved scope.
 - [Environment increment](docs/task-environment.md): completed approved scope.
+- [Runtime-argument increment](docs/runtime-arguments.md): completed approved scope.
 - [Development checks](docs/development.md): local gates and proposed CI workflow.
 - [Next increment](docs/next-increment.md): proposal awaiting review.
 
-Each increment is planned and reviewed before implementation. Runtime task
-arguments, parallelism, and caching remain future work.
+Each increment is planned and reviewed before implementation. Resource budgets,
+parallelism, and caching remain future work.

@@ -2,6 +2,7 @@
 
 #include "config.hpp"
 
+#include <span>
 #include <stdexcept>
 #include <string_view>
 
@@ -12,6 +13,7 @@ class TaskFailure : public std::runtime_error {
     using std::runtime_error::runtime_error;
 };
 
-void run_task(const Config &config, std::string_view target);
+void run_task(const Config &config, std::string_view target,
+              std::span<const std::string> arguments = {});
 
 } // namespace tatr

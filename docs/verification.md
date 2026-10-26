@@ -1,6 +1,59 @@
 # Verification results
 
-## Task environment increment (current)
+## Runtime task-argument increment (current)
+
+Verified on 2026-10-26; see [the approved plan](runtime-arguments.md) and
+[configuration contract](configuration.md).
+
+- Windows x64 MSVC 19.51.36260.0 / CMake 4.3.2: strict Debug build and **225
+  tests passed**. MinSizeRel release compilation passed without warnings.
+- Linux x64 Alpine 3.21 / Clang 19.1.4 / CMake 3.31.1: strict build,
+  clang-format verification, and clang-tidy analysis passed; **218 tests passed**.
+- The same Clang toolchain passed **220 ASan/UBSan tests**, including the
+  instrumented parser/application/child and sanitizer-propagation probes.
+- Linux x64 GCC 14.2.0: strict MinSizeRel build and **218 tests passed**.
+- End-to-end coverage adds configured/runtime argument order, no/empty separators,
+  explicit empty strings, spaces, quotes, trailing backslashes, Unicode, embedded
+  semicolons/control characters, literal shell metacharacters, child flags after
+  the separator, config-file option placement, shared-prerequisite isolation,
+  grouping rejection before side effects, cwd/env behavior, invalid syntax,
+  unknown targets, invalid unrelated configuration, and child/launch failures.
+- A Windows-specific fixture combines a 32,000-character configured argument with
+  a 1,000-character runtime argument: each input alone fits, TATR can be launched,
+  and the final child command correctly fails the 32,767-unit check with exit 2
+  after its prerequisite. Existing native-size coverage remains intact.
+
+Runtime argument spans borrow from the main/CLI-owned vector for the synchronous
+run. The runner copies only the target command when appending nonempty arguments;
+configuration and prerequisite commands remain const. No native process backend,
+production dependency, shell policy, or cwd/env semantics changed.
+
+| Release executable | Current bytes | Current KiB | Previous bytes | Change |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64, static MSVC runtime | 365,568 | 357.0 | 362,496 | +3,072 |
+| Alpine Linux x64 GCC, shared runtime, unstripped | 115,992 | 113.3 | 110,728 | +5,264 |
+
+Runtime dependencies remain `KERNEL32.dll` on Windows and `libstdc++.so.6`,
+`libgcc_s.so.1`, and `libc.musl-x86_64.so.1` on Alpine, verified using dumpbin/readelf.
+Sizes exclude shared runtimes and developer tooling. Command latency and total
+memory budgets remain unmeasured; see the pending resource-baseline proposal.
+
+Commands use the existing strict, quality, and sanitizer workflows and the same
+GCC container flags recorded below. Logs under `build/` are
+`arguments-windows-tests.log`, `arguments-quality-run.log`,
+`arguments-sanitizer-run.log`, and `arguments-gcc-run.log`.
+The Windows release binary ran the real example from outside the repository root
+with `run check -- --parallel 2`; configure/build prerequisites succeeded without
+receiving the CTest flags and all 225 checks passed. Installation and installed
+binary argument forwarding, including an empty argument, also passed. The example
+log is `arguments-example-run.log` under `build/`.
+
+macOS, MinGW, other architectures/libcs, and a runtime-argument-specific POSIX
+aggregate ARG_MAX case remain unverified. Existing POSIX environment-size failure
+coverage still passes. Programs with custom Windows argument parsers retain their
+own rules. Cancellation and descendant cleanup remain unmanaged.
+
+## Task environment increment (historical baseline)
 
 Verified on 2026-10-26; see [the approved plan](task-environment.md) and
 [configuration contract](configuration.md).

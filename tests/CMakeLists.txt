@@ -27,6 +27,24 @@ foreach(case IN LISTS cases)
         -P ${CMAKE_CURRENT_SOURCE_DIR}/cli.cmake)
 endforeach()
 
+set(argument_cases
+    append_order no_separator empty_separator empty_values encoding literal flags_after_separator
+    file_before file_middle file_after_target prerequisite_isolation grouping_reject
+    grouping_empty_separator grouping_empty_argument separator_no_target separator_before_command
+    list_separator plan_separator empty_target file_value_separator extra_before_separator
+    extra_without_separator unknown_target cwd env child_failure prerequisite_failure launch_failure
+    invalid_unrelated
+)
+if(WIN32)
+    list(APPEND argument_cases combined_command_limit)
+endif()
+foreach(case IN LISTS argument_cases)
+    add_test(NAME arguments.${case} COMMAND ${CMAKE_COMMAND}
+        "-DTATR=$<TARGET_FILE:tatr>" "-DCHILD=$<TARGET_FILE:tatr_test_child>"
+        "-DCASE=${case}" "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/arguments/${case}"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/arguments.cmake)
+endforeach()
+
 set(env_cases
     inherit replace empty unicode literal new_name empty_table isolation inherited_unusual_name
     path_absolute path_relative path_empty path_empty_entry path_missing path_without_cwd
