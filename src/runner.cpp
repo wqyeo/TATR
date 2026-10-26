@@ -13,7 +13,7 @@ void run_task(const Config &config, std::string_view target) {
             continue;
         ProcessResult result;
         try {
-            result = run_process(command, task.cwd);
+            result = run_process(command, task.cwd, task.env);
         } catch (const std::exception &error) {
             std::string context = "task '" + name + "'";
             if (task.cwd) {

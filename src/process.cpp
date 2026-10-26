@@ -1,7 +1,9 @@
 #include "process.hpp"
 
+#include <cwchar>
 #include <limits>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <system_error>
 #include <vector>
@@ -100,6 +102,72 @@ std::wstring widen(const std::string &argument) {
     return result;
 }
 
+struct EnvironmentNameLess {
+    bool operator()(const std::wstring &left, const std::wstring &right) const {
+        const auto result = CompareStringOrdinal(left.c_str(), -1, right.c_str(), -1, TRUE);
+        if (result == 0)
+            windows_error("cannot compare environment names");
+        return result == CSTR_LESS_THAN;
+    }
+};
+
+class ChildEnvironment {
+  public:
+    explicit ChildEnvironment(const EnvironmentOverrides &overrides) {
+        struct FreeStrings {
+            void operator()(wchar_t *value) const noexcept {
+                FreeEnvironmentStringsW(value);
+            }
+        };
+        const std::unique_ptr<wchar_t, FreeStrings> native{GetEnvironmentStringsW()};
+        if (!native)
+            windows_error("cannot read inherited environment");
+        for (const auto *entry = native.get(); *entry; entry += std::wcslen(entry) + 1) {
+            const std::wstring text{entry};
+            // Preserve hidden drive-current-directory entries such as =C:=C:\.
+            const auto separator = text.find(L'=', text.front() == L'=' ? 1 : 0);
+            if (separator == std::wstring::npos) {
+                throw std::runtime_error("cannot read inherited environment entry");
+            }
+            values_.insert_or_assign(text.substr(0, separator), text.substr(separator + 1));
+        }
+        for (const auto &[key, value] : overrides) {
+            auto name = widen(key);
+            auto encoded = widen(value);
+            if (name.size() + encoded.size() + 2 > 32767) {
+                throw std::runtime_error("environment entry exceeds Windows size limit");
+            }
+            values_.insert_or_assign(std::move(name), std::move(encoded));
+            if (environment_name_key(key) == "path")
+                path_overridden_ = true;
+        }
+        for (const auto &[key, value] : values_) {
+            block_.insert(block_.end(), key.begin(), key.end());
+            block_.push_back(L'=');
+            block_.insert(block_.end(), value.begin(), value.end());
+            block_.push_back(L'\0');
+        }
+        if (block_.empty())
+            block_.push_back(L'\0');
+        block_.push_back(L'\0');
+    }
+    ChildEnvironment(const ChildEnvironment &) = delete;
+    ChildEnvironment &operator=(const ChildEnvironment &) = delete;
+    wchar_t *data() {
+        return block_.data();
+    }
+    const std::wstring *override_path() const {
+        if (!path_overridden_)
+            return nullptr;
+        return &values_.at(L"PATH");
+    }
+
+  private:
+    std::map<std::wstring, std::wstring, EnvironmentNameLess> values_;
+    std::vector<wchar_t> block_;
+    bool path_overridden_ = false;
+};
+
 // Encode for the Microsoft CRT argv rules: double backslashes before quotes
 // and before the closing quote. Windows passes one command-line string, not argv.
 std::wstring quote(const std::wstring &argument) {
@@ -122,16 +190,23 @@ std::wstring quote(const std::wstring &argument) {
     return result;
 }
 
-std::wstring child_search_path(const std::filesystem::path &cwd) {
-    const auto size = GetEnvironmentVariableW(L"PATH", nullptr, 0);
-    if (size == 0) {
-        throw std::runtime_error("cannot launch process: inherited PATH is empty or unavailable");
+std::wstring child_search_path(const std::filesystem::path &cwd,
+                               const std::wstring *effective_path) {
+    std::wstring value;
+    if (effective_path) {
+        value = *effective_path;
+    } else {
+        const auto size = GetEnvironmentVariableW(L"PATH", nullptr, 0);
+        if (size == 0) {
+            throw std::runtime_error(
+                "cannot launch process: inherited PATH is empty or unavailable");
+        }
+        value.resize(static_cast<std::size_t>(size));
+        const auto written = GetEnvironmentVariableW(L"PATH", value.data(), size);
+        if (written == 0 || written >= size)
+            windows_error("cannot read inherited PATH");
+        value.resize(written);
     }
-    std::wstring value(static_cast<std::size_t>(size), L'\0');
-    const auto written = GetEnvironmentVariableW(L"PATH", value.data(), size);
-    if (written == 0 || written >= size)
-        windows_error("cannot read inherited PATH");
-    value.resize(written);
     std::wstring result;
     std::size_t start = 0;
     do {
@@ -156,19 +231,21 @@ std::wstring child_search_path(const std::filesystem::path &cwd) {
 }
 
 std::wstring resolve_executable(const std::wstring &name,
-                                const std::optional<std::filesystem::path> &cwd) {
+                                const std::optional<std::filesystem::path> &cwd,
+                                const std::wstring *effective_path) {
     auto lookup = name;
     std::optional<std::wstring> search;
-    if (cwd) {
+    if (cwd || effective_path) {
+        const auto directory = cwd ? *cwd : std::filesystem::current_path();
         const std::filesystem::path executable{name};
         if (executable.has_root_name() && !executable.has_root_directory()) {
             throw std::runtime_error("cannot launch process: drive-relative executable paths are "
                                      "not supported with cwd");
         }
         if (executable.has_parent_path() || executable.has_root_name()) {
-            lookup = (*cwd / executable).native();
+            lookup = (directory / executable).native();
         } else {
-            search = child_search_path(*cwd);
+            search = child_search_path(directory, effective_path);
         }
     }
     const auto *path = search ? search->c_str() : nullptr;
@@ -230,13 +307,84 @@ class FileActions {
     posix_spawn_file_actions_t value_{};
 };
 
+class ChildEnvironment {
+  public:
+    explicit ChildEnvironment(const EnvironmentOverrides &overrides) {
+        for (auto *entry = environ; entry && *entry; ++entry) {
+            const std::string_view text{*entry};
+            const auto separator = text.find('=');
+            if (separator != std::string_view::npos &&
+                overrides.contains(std::string{text.substr(0, separator)}))
+                continue;
+            values_.emplace_back(text);
+        }
+        for (const auto &[key, value] : overrides) {
+            values_.push_back(key + '=' + value);
+        }
+        pointers_.reserve(values_.size() + 1);
+        for (auto &value : values_)
+            pointers_.push_back(value.data());
+        pointers_.push_back(nullptr);
+    }
+    ChildEnvironment(const ChildEnvironment &) = delete;
+    ChildEnvironment &operator=(const ChildEnvironment &) = delete;
+    char *const *data() const {
+        return pointers_.data();
+    }
+
+  private:
+    std::vector<std::string> values_;
+    // Build pointers after all string mutations; the object cannot be copied/moved.
+    std::vector<char *> pointers_;
+};
+
+int spawn_with_path(pid_t *child, const char *file, const posix_spawn_file_actions_t *actions,
+                    char *const *argv, char *const *environment, const std::string &path) {
+    if (std::string_view{file}.find('/') != std::string_view::npos) {
+        return posix_spawn(child, file, actions, nullptr, argv, environment);
+    }
+    bool denied = false;
+    std::size_t start = 0;
+    do {
+        const auto end = path.find(':', start);
+        auto candidate = path.substr(start, end == std::string::npos ? end : end - start);
+        if (!candidate.empty())
+            candidate += '/';
+        candidate += file;
+        // Each relative candidate is executed after the child-only chdir action.
+        // Do not use access() preflights or fall back to a shell on ENOEXEC.
+        const auto error =
+            posix_spawn(child, candidate.c_str(), actions, nullptr, argv, environment);
+        if (error == 0)
+            return 0;
+        if (error == EACCES)
+            denied = true;
+        else if (error != ENOENT && error != ENOTDIR)
+            return error;
+        if (end == std::string::npos)
+            break;
+        start = end + 1;
+    } while (true);
+    return denied ? EACCES : ENOENT;
+}
+
 } // namespace
 #endif
 
 ProcessResult run_process(std::span<const std::string> arguments,
-                          const std::optional<std::filesystem::path> &cwd) {
+                          const std::optional<std::filesystem::path> &cwd,
+                          const std::optional<EnvironmentOverrides> &env) {
     if (arguments.empty() || arguments.front().empty()) {
         throw std::runtime_error("process requires an executable name");
+    }
+    if (env) {
+        std::set<std::string> names;
+        for (const auto &[key, value] : *env) {
+            if (!valid_environment_name(key) || value.find('\0') != std::string::npos ||
+                !names.insert(environment_name_key(key)).second) {
+                throw std::runtime_error("invalid environment overrides");
+            }
+        }
     }
     for (const auto &argument : arguments) {
         if (argument.find('\0') != std::string::npos) {
@@ -253,7 +401,11 @@ ProcessResult run_process(std::span<const std::string> arguments,
         }
     }
 #ifdef _WIN32
-    const auto executable = resolve_executable(widen(arguments.front()), cwd);
+    std::optional<ChildEnvironment> environment;
+    if (env)
+        environment.emplace(*env);
+    const auto executable = resolve_executable(
+        widen(arguments.front()), cwd, environment ? environment->override_path() : nullptr);
     std::wstring command;
     for (const auto &argument : arguments) {
         if (!command.empty())
@@ -281,9 +433,11 @@ ProcessResult run_process(std::span<const std::string> arguments,
     startup.StartupInfo.hStdError = error.value;
     startup.lpAttributeList = attributes.get();
     PROCESS_INFORMATION information{};
-    if (!CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr,
-                        inherited.empty() ? FALSE : TRUE, EXTENDED_STARTUPINFO_PRESENT, nullptr,
-                        cwd ? cwd->c_str() : nullptr, &startup.StartupInfo, &information)) {
+    if (!CreateProcessW(
+            executable.c_str(), command.data(), nullptr, nullptr, inherited.empty() ? FALSE : TRUE,
+            EXTENDED_STARTUPINFO_PRESENT | (environment ? CREATE_UNICODE_ENVIRONMENT : 0),
+            environment ? environment->data() : nullptr, cwd ? cwd->c_str() : nullptr,
+            &startup.StartupInfo, &information)) {
         windows_error("cannot launch process");
     }
     process.value = information.hProcess;
@@ -307,8 +461,21 @@ ProcessResult run_process(std::span<const std::string> arguments,
         actions->chdir(*cwd);
     }
     pid_t child = 0;
-    const auto error = posix_spawnp(&child, argv[0], actions ? actions->get() : nullptr, nullptr,
-                                    argv.data(), environ);
+    std::optional<ChildEnvironment> environment;
+    if (env)
+        environment.emplace(*env);
+    auto *const *native_environment = environment ? environment->data() : environ;
+    const auto *file_actions = actions ? actions->get() : nullptr;
+    const std::string *child_path = nullptr;
+    if (env) {
+        const auto found = env->find("PATH");
+        if (found != env->end())
+            child_path = &found->second;
+    }
+    const auto error = child_path ? spawn_with_path(&child, argv[0], file_actions, argv.data(),
+                                                    native_environment, *child_path)
+                                  : posix_spawnp(&child, argv[0], file_actions, nullptr,
+                                                 argv.data(), native_environment);
     if (error != 0) {
         throw std::system_error(error, std::generic_category(), "cannot launch process");
     }

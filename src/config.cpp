@@ -121,7 +121,7 @@ Config load_config(const std::filesystem::path &file) {
         if (task.type != TOML_TABLE) {
             invalid(path, task, context, "expected a table");
         }
-        check_fields(task, {"description", "depends", "exec", "cwd"}, path, context);
+        check_fields(task, {"description", "depends", "exec", "cwd", "env"}, path, context);
         const auto description = toml_get(task, "description");
         Task model;
         if (description.type != TOML_UNKNOWN) {
@@ -201,6 +201,37 @@ Config load_config(const std::filesystem::path &file) {
             // Do not canonicalize: the directory may be created by a prerequisite,
             // and lexical normalization would change symlink/.. semantics.
             model.cwd = std::filesystem::absolute(file).parent_path() / selected;
+        }
+        const auto env = toml_get(task, "env");
+        if (env.type != TOML_UNKNOWN) {
+            if (env.type != TOML_TABLE) {
+                invalid(path, env, context + ".env", "expected a table of string values");
+            }
+            if (model.exec.empty()) {
+                invalid(path, env, context + ".env", "requires an executable task");
+            }
+            model.env.emplace();
+            std::set<std::string> names;
+            for (int j = 0; j < env.u.tab.size; ++j) {
+                const std::string key{env.u.tab.key[j], static_cast<std::size_t>(env.u.tab.len[j])};
+                const auto entry = env.u.tab.value[j];
+                if (!valid_environment_name(key)) {
+                    invalid(path, entry, context + ".env",
+                            "variable names must match [A-Za-z_][A-Za-z0-9_]*");
+                }
+                if (!names.insert(environment_name_key(key)).second) {
+                    invalid(path, entry, context + ".env",
+                            "conflicting environment variable names");
+                }
+                if (entry.type != TOML_STRING) {
+                    invalid(path, entry, context + ".env", "expected a string value");
+                }
+                std::string value{entry.u.str.ptr, static_cast<std::size_t>(entry.u.str.len)};
+                if (value.find('\0') != std::string::npos) {
+                    invalid(path, entry, context + ".env", "NUL values are not allowed");
+                }
+                model.env->emplace(key, std::move(value));
+            }
         }
         config.tasks.emplace(name, std::move(model));
     }

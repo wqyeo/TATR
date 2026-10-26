@@ -40,7 +40,7 @@ exec = ["cmake", "--preset", "dev"]
 cwd = "."
 ```
 
-Tasks support optional `description`, `depends`, `exec`, and `cwd` fields. `plan TASK`
+Tasks support optional `description`, `depends`, `exec`, `cwd`, and `env` fields. `plan TASK`
 prints prerequisites in their declared order, each once, with the target last.
 `run TASK` executes that order; tasks without `exec` group their prerequisites.
 All commands validate the entire configuration first. `list` and `plan` execute
@@ -52,6 +52,15 @@ is provided; relative values resolve from the configuration file's directory.
 The checked-in example uses `cwd = ".."` to run from the repository root regardless
 of the caller's directory. Exit codes are 0 for success, 1 for a failed child (original status
 reported on stderr), and 2 for configuration, CLI, or launch errors.
+
+An executable task can override selected inherited environment variables:
+
+```toml
+env = { BUILD_MODE = "release", EMPTY_VALUE = "" }
+```
+
+Values remain literal strings. Overrides apply only to that child; later tasks
+retain their own inherited environment. PATH overrides affect executable lookup.
 
 ## Build
 
@@ -99,6 +108,7 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - `src/main.cpp`: native command-line entry point and error reporting.
 - `src/cli.*`: CLI parsing and output.
 - `src/config.*`: configuration model and validation.
+- `src/environment.hpp`: portable override names and environment map type.
 - `src/planner.*`: dependency validation and deterministic planning.
 - `src/runner.*`: sequential task execution and failure reporting.
 - `src/process.*`: native Windows/POSIX process launching and waiting.
@@ -113,8 +123,9 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - [Command-execution increment](docs/command-execution.md): completed approved scope.
 - [Safety-hardening increment](docs/safety-hardening.md): completed approved scope.
 - [Working-directory increment](docs/task-working-directories.md): completed approved scope.
+- [Environment increment](docs/task-environment.md): completed approved scope.
 - [Development checks](docs/development.md): local gates and proposed CI workflow.
 - [Next increment](docs/next-increment.md): proposal awaiting review.
 
-Each increment is planned and reviewed before implementation. Environment
-overrides, parallelism, and caching remain future work.
+Each increment is planned and reviewed before implementation. Runtime task
+arguments, parallelism, and caching remain future work.

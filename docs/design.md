@@ -64,7 +64,9 @@ exec = ["cmake", "--build", "--preset", "dev"]
    input, and restricted Windows handle inheritance (implemented; see
    [development checks](development.md)).
 5. Add task working directories resolved from the configuration file (implemented).
-6. Add task environment overrides with explicit inheritance and lookup semantics.
+6. Add task environment overrides with explicit inheritance and lookup semantics
+   (implemented).
+7. Append literal runtime arguments to the requested task (proposed).
 
 Each increment needs review before implementation. Tests should cover meaningful
 behavior as it is introduced. Parallel execution, caching, remote execution,

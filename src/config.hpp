@@ -1,5 +1,7 @@
 #pragma once
 
+#include "environment.hpp"
+
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -15,6 +17,7 @@ struct Task {
     std::vector<std::string> exec;
     // Resolved against the config file's directory; absent inherits caller cwd.
     std::optional<std::filesystem::path> cwd;
+    std::optional<EnvironmentOverrides> env;
 };
 
 struct Config {

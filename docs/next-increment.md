@@ -1,45 +1,42 @@
-# Next increment proposal: task environment overrides
+# Next increment proposal: runtime task arguments
 
 Status: awaiting review. Do not implement until approved.
 
-Sequential execution, safety hardening, and [task working directories](task-working-directories.md)
-are implemented. See [verification results](verification.md). Environment overrides
+Sequential execution, task directories, and [environment overrides](task-environment.md)
+are implemented. See [verification results](verification.md). Runtime task arguments
 require separate approval of this plan.
 
 ## Outcome
 
-Let each executable task override selected environment variables with an optional
-`env` table, preserving inherited values for all other variables and never
-modifying TATR's own environment.
+Allow `tatr run TASK -- ARG...` to append literal arguments to the requested task's
+declared command, leaving prerequisite commands unchanged.
 
 ## Proposed steps
 
-1. Add optional `env` as a table of string values, including empty values. Require
-   portable variable names matching `[A-Za-z_][A-Za-z0-9_]*`; reject NUL values,
-   wrong types, and env fields on grouping tasks. Validate every task before any
-   execution, including unrelated tasks.
-2. Merge overrides into an owned snapshot of the inherited environment for each
-   task. Treat names as case-sensitive on POSIX and case-insensitive on Windows;
-   reject conflicting case variants within a Windows task's overrides. Leave
-   unspecified values inherited, and keep later tasks/TATR's environment unchanged.
-3. Extend native launching with owned POSIX envp storage and a Windows UTF-16
-   environment block. Preserve native inherited entries and RAII cleanup, report
-   encoding/size/launch failures as exit 2, and do not include variable values in
-   TATR diagnostics.
-4. Make executable lookup use the effective child PATH, including overridden PATH
-   and relative/empty entries under the task's effective directory. Preserve
-   existing behavior when env is absent. Document unset/empty PATH differences;
-   retain explicit interpreter requirements and no implicit shell expansion.
-5. Add meaningful tests for inheritance, replacement, empty/Unicode values,
-   isolation across tasks, Windows name casing, invalid unrelated fields, PATH
-   lookup with cwd, launch failures, and read-only list/plan. Run native Windows,
-   Linux GCC/Clang, formatting/static analysis, and sanitizer checks; report macOS
-   limits.
-6. Update examples, CLI/configuration docs, and release-size measurements. Present
+1. Add `run TASK -- ARG...`; accept the separator only after a run target. Treat
+   every following token literally, including empty strings, flags, and --file.
+   A separator with no arguments retains ordinary run behavior. Preserve option
+   parsing before it and reject unsupported list/plan uses or extra positional
+   arguments without a separator.
+2. Pass an immutable view of runtime arguments from CLI to runner. Append them
+   after the target's configured exec arguments in an owned temporary vector;
+   never mutate the configuration or append arguments to prerequisites.
+3. Reject nonempty runtime arguments on grouping targets with exit 2 before any
+   prerequisite executes. Keep existing dependency order, once-only execution,
+   cwd/env behavior, native argument encoding, and failure-status rules.
+4. Retain direct execution: no argument splitting, interpolation, globbing, or
+   implicit shell. Apply existing native command-size/launch checks to the combined
+   command; launch failures stop later tasks and retain prior effects.
+5. Test appended argument order, empty/Unicode/spaced values, quotes/backslashes,
+   shell metacharacters, flags after the separator, --file placement, prerequisite
+   isolation, grouping rejection before side effects, and invalid syntax. Run
+   Windows/Linux GCC/Clang, formatting/static analysis, and sanitizer checks;
+   report macOS limits and native argument-limit coverage.
+6. Update examples, help/configuration docs, and release-size measurements. Present
    results for review; commit/push only when authorized.
 
 ## Scope boundary
 
-No environment deletion syntax, dotenv/secrets-file loading, interpolation,
-global environment mutation, parallelism, caching, retries, timeouts,
+No named argument schema, task-name syntax expansion, interpolation, dependency
+argument forwarding, environment deletion, parallelism, caching, retries, timeouts,
 cancellation/process-tree management, new production dependency, or remote CI changes.

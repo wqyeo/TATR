@@ -48,8 +48,10 @@ description = "A quoted name containing a dot"
   characters such as tabs/newlines. An absent `exec` makes a grouping task.
 - The optional `cwd` is a nonempty directory string without NUL. It requires an
   `exec` field; grouping tasks cannot specify a process directory.
-- Unknown root/task fields are rejected. `env` is not supported by this
-  increment. TOML duplicate keys are parse errors.
+- The optional `env` table overrides selected inherited environment variables for
+  an executable task; values must be strings and may be empty. Names must match
+  `[A-Za-z_][A-Za-z0-9_]*`. NUL values and env fields on grouping tasks are rejected.
+- Unknown root/task fields are rejected. TOML duplicate keys are parse errors.
 
 ## Commands
 
@@ -100,7 +102,8 @@ once; tasks without `exec` succeed after their prerequisites and launch no proce
 The runner waits for each child to finish before starting the next task. Unknown
 targets and malformed arguments fail before any child runs.
 
-Children inherit the environment, stdin, stdout, and stderr. Without `cwd`, they
+Children inherit stdin, stdout, and stderr, and the environment except for declared
+`env` overrides. Without `cwd`, they
 also inherit the caller's directory. With `cwd`, the rules below apply. Relative
 script arguments are interpreted by the child program from its working directory;
 TATR does not rewrite argument strings. Child output goes
@@ -157,7 +160,8 @@ toolchain uses `_np`. Older libcs may lack it; macOS remains unverified. See the
 With `cwd`, executable paths containing a directory component resolve from the
 child directory. On POSIX, bare names use inherited PATH; relative and empty PATH
 entries resolve from the child's directory. An unset PATH follows libc defaults.
-On Windows, bare names with `cwd` search only inherited PATH (with `.exe` as the
+On Windows, bare names with `cwd` search only effective PATH (inherited unless
+overridden, with `.exe` as the
 default extension); relative and empty entries are anchored to the child directory.
 There is no implicit insertion of application, system, or caller directories in
 that mode. Quoted Windows PATH entries are unwrapped. An unavailable/empty Windows
@@ -167,9 +171,58 @@ executable/PATH entries when an explicit `cwd` applies. Use `C:/work` or an ordi
 relative path. Windows directory and PATH names containing `;` remain subject to
 the native search-path delimiter rules.
 
+### Task environment overrides
+
+```toml
+[tasks.check]
+exec = ["ctest", "--preset", "dev"]
+cwd = "."
+env = { CTEST_OUTPUT_ON_FAILURE = "1", OPTIONAL_VALUE = "" }
+```
+
+An env table merges into an owned snapshot of the inherited environment for that
+task. Unspecified values are preserved. Empty strings set a variable to an empty
+value; no deletion syntax is provided. An empty table is valid on executable
+tasks. Field types and names are validated across the whole configuration before
+any task runs. Neither list nor plan constructs a child environment or performs
+executable lookup. Values undergo no interpolation, shell expansion, or dotenv
+loading. TATR never changes its own environment; prerequisites cannot pass new
+variables to later tasks by altering their own process environments.
+
+POSIX override names are case-sensitive. Windows names are case-insensitive, and
+conflicting variants such as `MODE` and `mode` within one table are rejected on
+Windows. Inherited names need not follow the portable override-name restriction:
+their native forms, including Windows hidden drive entries, are preserved.
+Windows uses a sorted, double-NUL-terminated UTF-16 block with
+CREATE_UNICODE_ENVIRONMENT; POSIX uses owned strings and a stable envp array.
+See [the Windows environment contract](https://learn.microsoft.com/en-us/windows/win32/procthread/changing-environment-variables).
+
+When PATH is overridden, bare executable names search that effective PATH, using
+the task's cwd or the caller's directory if cwd is absent. Relative and empty PATH
+entries use that directory. An explicitly empty PATH searches only that directory
+on both platforms. Windows matches PATH override names case-insensitively, retains
+its `.exe` default, and searches only the effective PATH in this mode. An env
+table without a PATH override preserves existing lookup behavior, including
+native defaults when the inherited PATH is unset. With explicit cwd on Windows,
+an inherited unavailable/empty PATH still fails bare-name lookup as described
+above. Explicit executable paths bypass PATH.
+
+POSIX PATH overrides use direct posix_spawn attempts, rather than posix_spawnp's
+parent-environment lookup. Missing/non-directory candidates are skipped;
+permission-denied candidates allow a later entry to succeed, with EACCES reported
+if all remaining candidates are missing. Other launch errors stop the search.
+No implicit shell fallback is added for executable script text.
+
+Windows overridden entries, including name, `=`, and terminating NUL, are limited
+to 32,767 UTF-16 code units by TATR. POSIX argument/environment limits are enforced
+by the OS. Encoding, size, and launch failures return 2 and stop later tasks;
+earlier side effects remain. TATR does not print environment values in its
+validation or native launch diagnostics. Child programs control their own output.
+
 ### Native execution and interruption
 
-POSIX uses `posix_spawnp` with inherited environment and file descriptors. Names
+POSIX uses `posix_spawnp` or the PATH-override search described above, with native
+file-descriptor inheritance and the selected environment. Names
 without `/` use PATH; names with `/` identify a path directly. No shell fallback
 is added for executable text without an interpreter. The OS may itself recognize
 executable scripts with a shebang. The spawn/wait contract is described by
@@ -177,7 +230,7 @@ executable scripts with a shebang. The spawn/wait contract is described by
 
 Windows uses `SearchPathW` (default extension `.exe`) and checks for a native
 executable image before `CreateProcessW`, passing the resolved executable
-explicitly. Without `cwd`, native lookup includes system/application locations and PATH; its
+explicitly. Without `cwd` or a PATH override, native lookup includes system/application locations and PATH; its
 current-directory ordering depends on Windows search policy. It does not implement
 PATHEXT expansion or App Paths lookup. Batch and PowerShell files require an
 explicit interpreter. See [SearchPathW](https://learn.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-searchpathw)

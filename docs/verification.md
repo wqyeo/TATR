@@ -1,6 +1,63 @@
 # Verification results
 
-## Task working-directory increment (current)
+## Task environment increment (current)
+
+Verified on 2026-10-26; see [the approved plan](task-environment.md) and
+[configuration contract](configuration.md).
+
+- Windows x64 MSVC 19.51.36260.0 / CMake 4.3.2: strict Debug build and **195
+  tests passed**. MinSizeRel release compilation passed without warnings.
+- Linux x64 Alpine 3.21 / Clang 19.1.4 / CMake 3.31.1: strict build,
+  clang-format verification, and clang-tidy analysis passed; **189 tests passed**.
+- The same Linux Clang toolchain passed **191 ASan/UBSan tests**, including the
+  instrumented parser, application, test child, and sanitizer-propagation probes.
+- Linux x64 GCC 14.2.0: strict MinSizeRel build and **189 tests passed**.
+- Coverage adds inherited/replaced/new/empty/Unicode/literal values, empty env
+  tables, inherited nonportable Unicode names, isolation between tasks, PATH
+  replacement independent of the parent's PATH, relative/empty/Unicode PATH entries
+  with cwd and caller directories, preservation of lookup without PATH overrides,
+  unset inherited PATH, read-only list/plan, invalid unrelated fields, grouping
+  rejection, name/value validation, native size failures, and stopping subsequent
+  tasks on launch/child errors. Invalid-value diagnostics are checked for leaks.
+- Windows-specific cases cover case-insensitive replacement and PATH names plus
+  rejection of conflicting case variants. POSIX accepts distinct case variants
+  and checks permission-denied PATH candidates with and without a later match.
+  No implicit interpreter is used for executable text on either platform.
+
+The permission-denial fixture uses a directory as an executable candidate, which
+reliably yields EACCES on Linux. The first fixture used a non-executable text file,
+but the mounted Windows filesystem did not consistently enforce its execute bits
+and instead returned ENOEXEC. This fixture correction retains the intended PATH
+fallback assertion. POSIX environment assembly copies inherited entries once and
+skips overridden names, avoiding repeated scans as overrides grow.
+
+| Release executable | Current bytes | Current KiB | Previous bytes | Change |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64, static MSVC runtime | 362,496 | 354.0 | 350,208 | +12,288 |
+| Alpine Linux x64 GCC, shared runtime, unstripped | 110,728 | 108.1 | 100,400 | +10,328 |
+
+Runtime dependencies remain `KERNEL32.dll` on Windows and `libstdc++.so.6`,
+`libgcc_s.so.1`, and `libc.musl-x86_64.so.1` on Alpine (dumpbin/readelf verified).
+No production dependency was added. Sizes exclude developer tooling and shared
+libraries; sanitizer runtimes are absent from normal release builds.
+
+Commands follow the existing strict, quality, and sanitizer workflows; GCC uses
+the same pinned container/toolchain flags recorded below. Logs under `build/` are
+`env-windows-tests.log`, `env-quality-run.log`, `env-sanitizer-run.log`, and
+`env-gcc-run.log`. The checked-in example now sets CTEST_OUTPUT_ON_FAILURE only on
+its check task, exercising a real environment override. The Windows release
+binary ran that configure/build/test workflow from outside the repository root;
+all 195 checks passed. Installation and installed-binary execution with a Unicode
+override also passed. The example log is `env-example-run.log` under `build/`.
+
+macOS, MinGW, other architectures/libcs, unusual inherited duplicate Windows names,
+and allocation/encoding failure injection remain unverified. Unicode override
+values and inherited names are exercised, but no memory-safety proof or total
+memory/startup budget is established. Native inherited drive entries are preserved
+in code; separate injection of those hidden entries was not tested. Cancellation
+and descendant cleanup remain unmanaged.
+
+## Task working-directory increment (historical baseline)
 
 Verified on 2026-10-26. See [the approved plan](task-working-directories.md)
 and [the configuration contract](configuration.md).

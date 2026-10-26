@@ -18,3 +18,4 @@ description = "Check the project"
 depends = ["build"]
 exec = ["ctest", "--preset", "dev"]
 cwd = ".."
+env = { CTEST_OUTPUT_ON_FAILURE = "1" }

@@ -4,7 +4,7 @@ set(cases
     missing_file malformed duplicate_key missing_version wrong_version version_string
     version_float version_boolean missing_tasks tasks_array task_scalar task_array
     description_type unknown_root unknown_task
-    unsupported_env empty_name control_name control_description
+    empty_name control_name control_description
     c1_name c1_description nul_description nul_key no_parent_search late_invalid_task
     unknown_option unknown_command extra_argument duplicate_command missing_file_argument
     empty_file_argument option_as_file duplicate_file missing_command misplaced_help
@@ -25,6 +25,27 @@ foreach(case IN LISTS cases)
         "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cases/${case}"
         "-DVERSION=${PROJECT_VERSION}"
         -P ${CMAKE_CURRENT_SOURCE_DIR}/cli.cmake)
+endforeach()
+
+set(env_cases
+    inherit replace empty unicode literal new_name empty_table isolation inherited_unusual_name
+    path_absolute path_relative path_empty path_empty_entry path_missing path_without_cwd
+    path_unicode inherited_path_unset lookup_preserved
+    list_readonly plan_readonly invalid_unrelated grouping
+    type_string type_array type_number value_number value_boolean value_array value_table
+    name_empty name_digit name_equals name_dash name_unicode name_control name_nul nul_value
+    case_variants launch_failure child_failure size_failure no_shell_fallback
+)
+if(WIN32)
+    list(APPEND env_cases windows_casing windows_path_casing)
+else()
+    list(APPEND env_cases path_denied path_continue)
+endif()
+foreach(case IN LISTS env_cases)
+    add_test(NAME env.${case} COMMAND ${CMAKE_COMMAND}
+        "-DTATR=$<TARGET_FILE:tatr>" "-DCHILD=$<TARGET_FILE:tatr_test_child>"
+        "-DCASE=${case}" "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/env/${case}"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/env.cmake)
 endforeach()
 
 set(cwd_cases

@@ -60,6 +60,34 @@ int main(int argc, char **argv) {
     } else if (mode == "cwd") {
         const auto encoded = std::filesystem::current_path().u8string();
         std::cout << std::string{encoded.begin(), encoded.end()} << '\n';
+    } else if (mode == "env_value" && args.size() == 2) {
+#ifdef _WIN32
+        const auto name = path(args[1]).native();
+        SetLastError(ERROR_SUCCESS);
+        const auto size = GetEnvironmentVariableW(name.c_str(), nullptr, 0);
+        if (size == 0) {
+            if (GetLastError() == ERROR_ENVVAR_NOT_FOUND)
+                std::cout << "missing\n";
+            else if (GetLastError() == ERROR_SUCCESS)
+                std::cout << "value:\n";
+            else
+                return 96;
+        } else {
+            std::wstring value(static_cast<std::size_t>(size), L'\0');
+            const auto written = GetEnvironmentVariableW(name.c_str(), value.data(), size);
+            if (written >= size)
+                return 97;
+            value.resize(written);
+            const auto encoded = std::filesystem::path{value}.u8string();
+            std::cout << "value:" << std::string{encoded.begin(), encoded.end()} << '\n';
+        }
+#else
+        const auto *value = std::getenv(args[1].c_str());
+        if (value)
+            std::cout << "value:" << value << '\n';
+        else
+            std::cout << "missing\n";
+#endif
     } else if (mode == "env") {
         const auto value = std::getenv("TATR_TEST_INHERITED");
         if (!value)
