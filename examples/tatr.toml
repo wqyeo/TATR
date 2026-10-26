@@ -1,0 +1,15 @@
+# Proposed configuration shape for discussion; not implemented or stable.
+version = 1
+
+[tasks.configure]
+description = "Configure the development build"
+exec = ["cmake", "--preset", "dev"]
+
+[tasks.build]
+description = "Build the development executable"
+depends = ["configure"]
+exec = ["cmake", "--build", "--preset", "dev"]
+
+[tasks.check]
+description = "An example dependency-only task"
+depends = ["build"]

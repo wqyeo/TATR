@@ -1,0 +1,15 @@
+[tools]
+cmake = "4.3.2"
+
+[tasks.configure]
+description = "Configure the development build"
+run = "cmake --preset dev"
+
+[tasks.build]
+description = "Build the development executable"
+depends = ["configure"]
+run = "cmake --build --preset dev"
+
+[tasks.release]
+description = "Build for minimum size"
+run = ["cmake --preset release", "cmake --build --preset release"]
