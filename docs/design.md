@@ -28,14 +28,42 @@ TATR will put that orchestration into a readable TOML file.
 - A portable runner does not make platform-specific commands portable.
 - Add dependencies and features only when their benefit justifies their cost.
 
-These boundaries guide future proposals; they are not implemented features.
+These boundaries guide reviewed increments; current capabilities are listed below.
 
-## Possible first capabilities
+## Current implementation
 
-1. Parse and validate a versioned task file; list task names and descriptions.
-2. Resolve dependencies and display a dry run without executing commands.
-3. Execute tasks sequentially, stopping on failure and preserving useful exit codes.
-4. Add task working directories and environment overrides with explicit semantics.
+TATR loads TOML, validates a versioned schema and dependency graph, lists tasks,
+displays prerequisite order with `plan`, and executes argument arrays sequentially
+with `run`. See [the configuration contract](configuration.md). A pinned tomlc17
+dependency provides TOML parsing; native OS APIs provide process execution.
+
+## Supported format
+
+Run this example from the repository root:
+
+```toml
+version = 1
+
+[tasks.configure]
+exec = ["cmake", "--preset", "dev"]
+
+[tasks.build]
+depends = ["configure"]
+exec = ["cmake", "--build", "--preset", "dev"]
+```
+
+## Increment sequence
+
+1. Parse and validate a versioned task file; list task names and descriptions
+   (implemented).
+2. Resolve dependencies and display task order without executing commands
+   (implemented).
+3. Execute tasks sequentially, stopping on failure and reporting original child
+   statuses (implemented; runner exits 1 for child failures, 2 for its own errors).
+4. Establish local strict builds, static analysis, sanitizers, bounded config
+   input, and restricted Windows handle inheritance (implemented; see
+   [development checks](development.md)).
+5. Add task working directories and environment overrides with explicit semantics.
 
 Each increment needs review before implementation. Tests should cover meaningful
 behavior as it is introduced. Parallel execution, caching, remote execution,
@@ -43,8 +71,8 @@ plugins, and CI platform integration are deferred.
 
 ## Decisions still open
 
-- Exact TOML schema and CLI syntax, including configuration discovery.
-- TOML parser choice, license, dependency delivery, and binary-size cost.
+- Future TOML schema and CLI extensions beyond basic sequential execution.
+- Parser upgrade policy beyond the approved pinned, vendored tomlc17 dependency.
 - Supported compiler versions, operating-system versions, and architectures.
 - Numeric budgets for executable size, startup time, and memory use.
 - Static versus dynamic runtime linking and release packaging by platform.

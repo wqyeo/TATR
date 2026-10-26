@@ -5,6 +5,9 @@ user to review and wait for approval. Approval to scaffold or plan does not
 authorize implementing the task runner. Keep work within the approved scope; bring
 material changes to the plan back for review before proceeding.
 
+Write the full next-increment plan in the chat as well as in the repository, so
+the user can review it without opening a file.
+
 Commit and push when the user authorizes them. Include relevant verification
 results and limitations when presenting completed work.
 

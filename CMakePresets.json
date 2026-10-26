@@ -6,17 +6,45 @@
       "name": "dev",
       "displayName": "Development",
       "binaryDir": "${sourceDir}/build/dev",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "BUILD_TESTING": "ON" }
+    },
+    {
+      "name": "strict",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build/strict",
+      "cacheVariables": { "TATR_STRICT": "ON" }
+    },
+    {
+      "name": "quality",
+      "inherits": "strict",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/quality",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "sanitize",
+      "inherits": "quality",
+      "binaryDir": "${sourceDir}/build/sanitize",
+      "cacheVariables": { "TATR_SANITIZERS": "ON" }
     },
     {
       "name": "release",
       "displayName": "Small release",
       "binaryDir": "${sourceDir}/build/release",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "MinSizeRel" }
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "MinSizeRel", "BUILD_TESTING": "OFF" }
     }
   ],
   "buildPresets": [
     { "name": "dev", "configurePreset": "dev", "configuration": "Debug" },
+    { "name": "strict", "configurePreset": "strict", "configuration": "Debug" },
     { "name": "release", "configurePreset": "release", "configuration": "MinSizeRel" }
+  ],
+  "testPresets": [
+    { "name": "dev", "configurePreset": "dev", "configuration": "Debug", "output": { "outputOnFailure": true } },
+    { "name": "strict", "configurePreset": "strict", "configuration": "Debug", "output": { "outputOnFailure": true } }
   ]
 }

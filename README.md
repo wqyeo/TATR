@@ -1,6 +1,6 @@
 # That's Another Task Runner
 
-TATR is a planned lightweight task runner for teams that need repeatable local
+TATR is a lightweight task runner in development for teams that need repeatable local
 workflows without dedicated CI/CD infrastructure or runners. It aims to replace
 the orchestration inside sprawling shell scripts with readable TOML, while keeping
 scripts available for the actual work.
@@ -9,18 +9,57 @@ The chosen foundation is C++23, targeting Linux, macOS, and Windows. The core
 priorities are a lean implementation, minimal dependencies, and a small executable
 suited to small systems.
 
-This repository currently contains only the project scaffold. The executable
-prints a placeholder message; TOML parsing and task execution are not implemented.
+TATR validates a TOML task file, lists tasks, plans dependency order, and executes
+commands sequentially, stopping on the first failure.
+
+## Use
+
+```sh
+tatr --help
+tatr --version
+tatr --file examples/tatr.toml list
+tatr --file examples/tatr.toml plan check
+tatr --file examples/tatr.toml run check
+```
+
+`tatr list` reads `tatr.toml` in the current directory. It does not search parent
+directories. Tasks are listed alphabetically; invalid configuration fails before
+any listing is printed. An empty tasks table is valid.
+
+```toml
+version = 1
+
+[tasks.build]
+description = "Build the project"
+depends = ["configure"]
+exec = ["cmake", "--build", "--preset", "dev"]
+
+[tasks.configure]
+exec = ["cmake", "--preset", "dev"]
+```
+
+Tasks support optional `description`, `depends`, and `exec` fields. `plan TASK`
+prints prerequisites in their declared order, each once, with the target last.
+`run TASK` executes that order; tasks without `exec` group their prerequisites.
+All commands validate the entire configuration first. `list` and `plan` execute
+nothing. See [configuration and CLI rules](docs/configuration.md).
+
+Commands are argument arrays, with no implicit shell or expansion. Programs inherit
+your working directory, environment, and standard I/O. Run the example from the
+repository root. Exit codes are 0 for success, 1 for a failed child (original status
+reported on stderr), and 2 for configuration, CLI, or launch errors.
 
 ## Build
 
-Requirements: CMake 3.25 or newer and a compiler supporting C++23. On Windows,
+Requirements: CMake 3.25 or newer, a compiler supporting C++23, and a C17 compiler
+for the vendored TOML parser. On Windows,
 install the Visual Studio C++ build tools. On Linux and macOS, use an appropriate
 GCC or Clang toolchain and a supported CMake build tool.
 
 ```sh
 cmake --preset dev
 cmake --build --preset dev
+ctest --preset dev
 ```
 
 Run `build/dev/tatr` with a single-configuration generator, or
@@ -34,18 +73,41 @@ cmake --preset release
 cmake --build --preset release
 ```
 
-Optional: `mise run build` and `mise run release` wrap the same commands. The
+Optional: `mise run build`, `mise run test`, and `mise run release` wrap these commands. The
 repository's `mise.toml` pins CMake; a C++ compiler must be installed separately.
+
+For development checks, use `mise run strict`, `mise run quality`, and
+`mise run sanitize`. Formatting and analysis tools are pinned in an optional
+Podman image; see [the local workflow and CI proposal](docs/development.md).
+
+The TOML parser is vendored at a pinned revision; building a checkout requires no
+dependency downloads. Install with `cmake --install build/release --config MinSizeRel
+--prefix <destination>`; this installs the executable and the parser's MIT license.
+
+Windows debug/release and Linux x64 release builds have been verified. macOS is
+unverified. See [verification and size measurements](docs/verification.md) for
+toolchains, commands, runtime dependencies, and limits of those measurements.
 
 ## Project layout
 
-- `src/main.cpp`: placeholder executable.
+- `src/main.cpp`: native command-line entry point and error reporting.
+- `src/cli.*`: CLI parsing and output.
+- `src/config.*`: configuration model and validation.
+- `src/planner.*`: dependency validation and deterministic planning.
+- `src/runner.*`: sequential task execution and failure reporting.
+- `src/process.*`: native Windows/POSIX process launching and waiting.
+- `third_party/tomlc17/`: pinned parser source, provenance, and license.
+- `tests/`: CLI checks using CTest and CMake, without a test framework dependency.
 - `CMakeLists.txt` and `CMakePresets.json`: build and installation setup.
 - `mise.toml`: optional developer tooling and build tasks.
-- `examples/tatr.toml`: illustrative configuration proposal.
+- `examples/tatr.toml`: supported configuration example.
 - [Design notes](docs/design.md): problem statement, principles, and open decisions.
-- [Next increment](docs/next-increment.md): implementation proposal awaiting review.
+- [Parser and schema decisions](docs/configuration-decisions.md): approved decisions and comparison.
+- [Dependency-planning increment](docs/dependency-planning.md): completed approved scope.
+- [Command-execution increment](docs/command-execution.md): completed approved scope.
+- [Safety-hardening increment](docs/safety-hardening.md): completed approved scope.
+- [Development checks](docs/development.md): local gates and proposed CI workflow.
+- [Next increment](docs/next-increment.md): proposal awaiting review.
 
-The intended first user workflow is to list tasks from a TOML file, then inspect
-their dependency order before execution is introduced. Configuration and CLI
-details remain proposals until reviewed.
+Each increment is planned and reviewed before implementation. Working-directory
+and environment overrides, parallelism, and caching remain future work.

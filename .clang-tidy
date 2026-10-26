@@ -1,0 +1,15 @@
+Checks: >-
+  -*,
+  clang-analyzer-core.*,
+  clang-analyzer-cplusplus.*,
+  clang-analyzer-deadcode.*,
+  bugprone-dangling-handle,
+  bugprone-use-after-move,
+  bugprone-sizeof-expression,
+  bugprone-suspicious-memory-comparison,
+  bugprone-undefined-memory-manipulation,
+  cppcoreguidelines-narrowing-conversions
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*/(src|tests)/.*'
+SystemHeaders: false
+FormatStyle: file

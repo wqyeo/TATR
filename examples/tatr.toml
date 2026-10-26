@@ -1,4 +1,4 @@
-# Proposed configuration shape for discussion; not implemented or stable.
+# Run from the repository root. Requires CMake and a native C++ toolchain.
 version = 1
 
 [tasks.configure]
@@ -11,5 +11,6 @@ depends = ["configure"]
 exec = ["cmake", "--build", "--preset", "dev"]
 
 [tasks.check]
-description = "An example dependency-only task"
+description = "Check the project"
 depends = ["build"]
+exec = ["ctest", "--preset", "dev"]
