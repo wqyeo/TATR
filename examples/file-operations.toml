@@ -1,0 +1,26 @@
+# Requires CMake on PATH. Operates only on demo files beneath build/file-demo/.
+# Run: tatr --file examples/file-operations.toml run move
+version = 1
+
+[tasks.prepare]
+description = "Create demo input and output directories"
+exec = ["cmake", "-E", "make_directory", "build/file-demo/in", "build/file-demo/out"]
+cwd = ".."
+
+[tasks.source]
+description = "Create a demo file from the project license"
+depends = ["prepare"]
+exec = ["cmake", "-E", "copy", "LICENSE", "build/file-demo/in/source.txt"]
+cwd = ".."
+
+[tasks.copy]
+description = "Copy the demo file into the output directory"
+depends = ["source"]
+exec = ["cmake", "-E", "copy", "build/file-demo/in/source.txt", "build/file-demo/out/copied.txt"]
+cwd = ".."
+
+[tasks.move]
+description = "Move the demo source into the output directory"
+depends = ["copy"]
+exec = ["cmake", "-E", "rename", "build/file-demo/in/source.txt", "build/file-demo/out/moved.txt"]
+cwd = ".."

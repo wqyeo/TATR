@@ -14,6 +14,7 @@ TATR will put that orchestration into a readable TOML file.
 
 - C++23 implementation targeting Linux, macOS, and Windows.
 - Lean, minimal, and small enough for small or tiny systems.
+- MIT project license; retain the vendored parser's separate MIT notice.
 - TOML describes tasks and their actions.
 - Useful without CI/CD infrastructure or dedicated runners.
 
@@ -67,8 +68,8 @@ exec = ["cmake", "--build", "--preset", "dev"]
 6. Add task environment overrides with explicit inheritance and lookup semantics
    (implemented).
 7. Append literal runtime arguments to the requested task (implemented).
-8. Establish repeatable small-system resource measurements and propose budgets
-   (proposed).
+8. Dogfood the existing workflows and establish first-use/release readiness
+   (proposed). Performance benchmarking is deferred.
 
 Each increment needs review before implementation. Tests should cover meaningful
 behavior as it is introduced. Parallel execution, caching, remote execution,
@@ -82,7 +83,6 @@ plugins, and CI platform integration are deferred.
 - Numeric budgets for executable size, startup time, and memory use.
 - Static versus dynamic runtime linking and release packaging by platform.
 - Process cancellation, signal handling, and shell behavior on each platform.
-- Project license.
 
 The scaffold uses a static MSVC runtime and a `MinSizeRel` release preset as
 starting build choices. They do not establish a release-size guarantee or an

@@ -12,6 +12,10 @@ suited to small systems.
 TATR validates a TOML task file, lists tasks, plans dependency order, and executes
 commands sequentially, stopping on the first failure.
 
+This is pre-release software, currently built from source. Windows and Linux have
+been verified; macOS is a target but has not been verified. There is no published
+release package yet. TATR is [MIT licensed](LICENSE).
+
 ## Use
 
 ```sh
@@ -22,6 +26,9 @@ tatr --file examples/tatr.toml plan check
 tatr --file examples/tatr.toml run check
 tatr --file examples/tatr.toml run check -- --parallel 2
 ```
+
+These commands assume the built executable is on PATH. Otherwise use its full or
+relative path; build and installation locations are shown below.
 
 `tatr list` reads `tatr.toml` in the current directory. It does not search parent
 directories. Tasks are listed alphabetically; invalid configuration fails before
@@ -68,6 +75,66 @@ env = { BUILD_MODE = "release", EMPTY_VALUE = "" }
 Values remain literal strings. Overrides apply only to that child; later tasks
 retain their own inherited environment. PATH overrides affect executable lookup.
 
+## Build destinations and file operations
+
+TATR runs the commands you declare. Your build tool selects its build directory
+and artifact names; an install or file-operation task selects the destination.
+There are no built-in `build_dir`, `copy`, or `move` actions.
+
+For a CMake project, save a workflow like this in the project's root:
+
+```toml
+version = 1
+
+[tasks.configure]
+exec = ["cmake", "-S", ".", "-B", "build/output", "-DCMAKE_BUILD_TYPE=Release"]
+cwd = "."
+
+[tasks.build]
+depends = ["configure"]
+exec = ["cmake", "--build", "build/output", "--config", "Release"]
+cwd = "."
+
+[tasks.install]
+depends = ["build"]
+exec = ["cmake", "--install", "build/output", "--config", "Release", "--prefix", "build/stage"]
+cwd = "."
+```
+
+`tatr run install` builds in `build/output` and installs into `build/stage` according
+to that project's CMake install rules. Artifact locations inside a build tree
+depend on the project and generator; `--prefix` controls the install root.
+Single-configuration generators use `CMAKE_BUILD_TYPE`; Visual Studio and other
+multi-configuration generators select Release through `--config Release`.
+
+Ordinary copying and moving also work through external commands. With CMake on
+PATH, executable task bodies can use:
+
+```toml
+exec = ["cmake", "-E", "copy", "build/app.bin", "build/stage/app.bin"]
+# Or, for a move on the same filesystem/volume:
+# exec = ["cmake", "-E", "rename", "build/app.bin", "build/stage/app.bin"]
+```
+
+Create destination directories first with `cmake -E make_directory`; use
+`copy_directory` for directory contents. CMake's `rename` supports files or
+directories on one volume. For cross-volume moves, choose a tool with the required
+semantics, or a script that copies, verifies success, then removes the source.
+Linux/macOS can invoke `mv` directly; Windows PowerShell or cmd built-ins require
+an explicit interpreter. The selected tool controls overwrite and error behavior.
+See [CMake's command-line tools](https://cmake.org/cmake/help/v4.3/manual/cmake.1.html#run-a-command-line-tool).
+
+Try the self-contained [file-operation example](examples/file-operations.toml):
+
+```sh
+tatr --file examples/file-operations.toml plan move
+tatr --file examples/file-operations.toml run move
+```
+
+It creates demo files only beneath `build/file-demo/`, copies the project license,
+and moves the demo source into its output directory. CMake is a dependency of
+these example tasks, not a requirement for every TATR workflow.
+
 ## Build
 
 Requirements: CMake 3.25 or newer, a compiler supporting C++23, and a C17 compiler
@@ -94,6 +161,38 @@ cmake --preset release
 cmake --build --preset release
 ```
 
+The release preset builds into `build/release`. Common executable locations are:
+
+| Generator | Release executable |
+| --- | --- |
+| Linux single-configuration Ninja/Makefiles | `build/release/tatr` |
+| Windows Visual Studio | `build/release/MinSizeRel/tatr.exe` |
+
+To put the runnable distribution in a chosen directory, from the repository root:
+
+```sh
+cmake --install build/release --config MinSizeRel --prefix build/stage
+```
+
+With the default install directories, this produces:
+
+```text
+build/stage/
+  bin/tatr                 # tatr.exe on Windows
+  share/tatr/licenses/tatr-LICENSE
+  share/tatr/licenses/tomlc17-LICENSE
+```
+
+Run the executable from `bin/`, or add that directory to PATH. The executable does
+not need the source checkout at runtime. You can copy/move the installed directory
+to another location on a compatible system, keeping both license notices when
+redistributing it. TOML files, scripts, and programs named by your tasks still need
+to be available. Linux binaries require compatible libc/C++ runtimes; a build for
+one distribution is not automatically a portable Linux bundle.
+
+Use installation or artifact copying for deployment. CMake build trees contain
+cached source/build paths and should not be moved as a substitute for installation.
+
 Optional: `mise run build`, `mise run test`, and `mise run release` wrap these commands. The
 repository's `mise.toml` pins CMake; a C++ compiler must be installed separately.
 
@@ -102,8 +201,7 @@ For development checks, use `mise run strict`, `mise run quality`, and
 Podman image; see [the local workflow and CI proposal](docs/development.md).
 
 The TOML parser is vendored at a pinned revision; building a checkout requires no
-dependency downloads. Install with `cmake --install build/release --config MinSizeRel
---prefix <destination>`; this installs the executable and the parser's MIT license.
+dependency downloads. Installation includes the executable and both MIT notices.
 
 Windows debug/release and Linux x64 release builds have been verified. macOS is
 unverified. See [verification and size measurements](docs/verification.md) for
@@ -123,6 +221,7 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - `CMakeLists.txt` and `CMakePresets.json`: build and installation setup.
 - `mise.toml`: optional developer tooling and build tasks.
 - `examples/tatr.toml`: supported configuration example.
+- `examples/file-operations.toml`: runnable copy/move example using CMake.
 - [Design notes](docs/design.md): problem statement, principles, and open decisions.
 - [Parser and schema decisions](docs/configuration-decisions.md): approved decisions and comparison.
 - [Dependency-planning increment](docs/dependency-planning.md): completed approved scope.
@@ -134,5 +233,12 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - [Development checks](docs/development.md): local gates and proposed CI workflow.
 - [Next increment](docs/next-increment.md): proposal awaiting review.
 
-Each increment is planned and reviewed before implementation. Resource budgets,
-parallelism, and caching remain future work.
+Each increment is planned and reviewed before implementation. The next focus is
+first-use testing and release readiness. Performance benchmarking is deferred;
+parallelism and caching remain future work.
+
+## License
+
+TATR is licensed under the [MIT License](LICENSE), copyright 2026 Yeo Wen Qin.
+The vendored tomlc17 parser retains CK Tan's separate
+[MIT license](third_party/tomlc17/LICENSE) and [provenance](third_party/tomlc17/README.md).

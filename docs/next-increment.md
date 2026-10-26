@@ -1,41 +1,40 @@
-# Next increment proposal: small-system resource baseline
+# Next increment proposal: first-use and release readiness
 
 Status: awaiting review. Do not implement until approved.
 
-The basic runner now includes [runtime arguments](runtime-arguments.md), task
-directories, and environment overrides. See [verification results](verification.md).
-This measurement increment requires separate approval.
+The basic runner includes task directories, environment overrides, and runtime
+arguments. The user deferred performance benchmarking before the first release.
+MIT licensing is now decided. This first-use increment awaits separate approval.
 
 ## Outcome
 
-Establish repeatable executable-size, command-latency, and peak-memory measurements
-to assess TATR's small-system goal and inform explicit budgets.
+Establish whether the existing runner is useful and straightforward to build,
+install, and use in real project workflows before adding more features.
 
 ## Proposed steps
 
-1. Define fixed generated workloads: --help, list/plan/group-only run with 1, 100,
-   and 1,000 tasks, plus a separate no-op child-launch scenario. Keep all configs
-   under the existing 1 MiB limit and use only fixtures beneath build/.
-2. Add an opt-in developer measurement command for release binaries on native
-   Windows and Linux. Keep measurement tools out of installation and production
-   dependencies; do not change the runner's behavior or user configuration.
-3. Run three untimed warmups and 30 fresh processes per scenario, redirecting
-   output consistently. Record median and p95 end-to-end command latency. Time
-   Linux commands inside the already-running container, excluding Podman startup
-   and builds. Label results as warm-cache CLI latency, not cold-boot startup.
-4. Measure native peak memory for scenarios that spawn no child, recording each
-   platform's metric and units (Linux resident memory versus Windows working set).
-   Keep child-launch timing separate. Record release bytes, runtime dependencies,
-   and shared-library exclusions; do not equate different native memory metrics.
-5. Emit machine-readable results with OS/architecture, toolchain/build settings,
-   workload sizes, binary hash, and source revision/dirty state. Verify command
-   failures cannot look like valid measurements and document reproducible commands.
-6. Publish the Windows/Linux baseline in repository docs and recommend budgets
-   based on observed results for review. Report macOS and tiny-device gaps;
-   commit/push only when authorized. Budget enforcement needs separate approval.
+1. Walk through a clean-checkout build, chosen-prefix installation, and first
+   task invocation on Windows/Linux, using only documented prerequisites. Record
+   every undocumented step and keep macOS explicitly unverified without native access.
+2. Use an installed TATR copy for this repository's configure/build/test workflow
+   and opt-in developer checks, avoiding rebuilding the executable currently in use.
+   Record friction around PATH, config selection, cwd/env, arguments, and errors.
+3. Exercise a small sample project's build/install workflow and the file-operation
+   example with ordinary and spaced paths. Keep generated data beneath build/;
+   verify chosen output/install directories and copied/moved file contents.
+4. Record and prioritize concrete usability issues. Make documentation corrections
+   within this scope; propose runtime behavior changes separately for review.
+   Do not add features merely to complete a checklist.
+5. Write a first-release checklist covering tested toolchains/platforms, unresolved
+   compatibility gaps, binary/runtime dependencies, package contents, both MIT
+   notices, and copyable getting-started instructions. Distinguish tested versions
+   from guaranteed minimum support; do not claim unverified macOS support.
+6. Present the evidence, remaining blockers, and the next practical fix for review.
+   Commit/push only when authorized; do not publish a release or activate CI as
+   part of this increment.
 
 ## Scope boundary
 
-No production behavior changes, optimizations, new execution features, production
-dependencies, automatic performance gates, remote CI activation, or claims of
-macOS/tiny-device validation without native evidence.
+No performance benchmark framework, new execution features, production dependencies,
+automatic performance gates, remote CI activation, release publication, or claims
+of native-platform/tiny-device validation without evidence.

@@ -1,5 +1,35 @@
 # Verification results
 
+## MIT licensing and usage documentation
+
+Verified on 2026-10-26. Added the project's MIT license (2026 Yeo Wen Qin), retained
+tomlc17's notice, and included both files in the CMake installation. No runtime
+behavior changed; the full-suite records below remain the runtime baseline.
+
+- Windows release configure/build/install passed with the existing MSVC toolchain.
+  Installed project/parser notices matched their source files by SHA-256.
+- Linux GCC release configure/build/install passed in the pinned Alpine tool
+  container. Both installed notices matched their sources byte-for-byte.
+- The new `examples/file-operations.toml` ran successfully on Windows and Linux:
+  source preparation, directory creation, copy, and same-volume rename completed.
+  Copied/moved contents matched LICENSE and the original demo source was absent.
+- The README's configure/build/install workflow ran on Windows in a generated
+  project whose path contains spaces. Build output appeared under `build/output`
+  and installation under `build/stage/bin`. Visual Studio selected Release via
+  --config; CMAKE_BUILD_TYPE is a single-configuration generator setting.
+- A copied Windows installation ran from a different directory, reporting its
+  version and planning the file-operation example without needing its old prefix.
+
+Local logs are `build/readme-destinations-check.log` and
+`build/readme-linux-check.log`; generated projects, demo files, and relocated
+installations remain under ignored build/. macOS and cross-volume move behavior
+were not tested. CMake's rename operation is documented for a single volume;
+other move semantics belong to the selected external tool.
+
+The pending benchmark proposal was replaced with first-use/release readiness
+after user feedback. No benchmark framework, release publication, or CI activation
+was performed.
+
 ## Runtime task-argument increment (current)
 
 Verified on 2026-10-26; see [the approved plan](runtime-arguments.md) and
@@ -36,7 +66,7 @@ production dependency, shell policy, or cwd/env semantics changed.
 Runtime dependencies remain `KERNEL32.dll` on Windows and `libstdc++.so.6`,
 `libgcc_s.so.1`, and `libc.musl-x86_64.so.1` on Alpine, verified using dumpbin/readelf.
 Sizes exclude shared runtimes and developer tooling. Command latency and total
-memory budgets remain unmeasured; see the pending resource-baseline proposal.
+memory budgets remain unmeasured; performance benchmarking is deferred.
 
 Commands use the existing strict, quality, and sanitizer workflows and the same
 GCC container flags recorded below. Logs under `build/` are
