@@ -50,6 +50,8 @@ int main(int argc, char **argv) {
         out << args[2] << '\n';
         if (!out)
             return 91;
+    } else if (mode == "mkdir" && args.size() == 2) {
+        std::filesystem::create_directories(path(args[1]));
     } else if (mode == "io") {
         std::string line;
         std::getline(std::cin, line);

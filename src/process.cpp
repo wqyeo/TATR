@@ -122,12 +122,61 @@ std::wstring quote(const std::wstring &argument) {
     return result;
 }
 
-std::wstring resolve_executable(const std::wstring &name) {
-    const auto size = SearchPathW(nullptr, name.c_str(), L".exe", 0, nullptr, nullptr);
+std::wstring child_search_path(const std::filesystem::path &cwd) {
+    const auto size = GetEnvironmentVariableW(L"PATH", nullptr, 0);
+    if (size == 0) {
+        throw std::runtime_error("cannot launch process: inherited PATH is empty or unavailable");
+    }
+    std::wstring value(static_cast<std::size_t>(size), L'\0');
+    const auto written = GetEnvironmentVariableW(L"PATH", value.data(), size);
+    if (written == 0 || written >= size)
+        windows_error("cannot read inherited PATH");
+    value.resize(written);
+    std::wstring result;
+    std::size_t start = 0;
+    do {
+        const auto end = value.find(L';', start);
+        auto entry = value.substr(start, end == std::wstring::npos ? end : end - start);
+        if (entry.size() >= 2 && entry.front() == L'"' && entry.back() == L'"') {
+            entry = entry.substr(1, entry.size() - 2);
+        }
+        const std::filesystem::path directory{entry};
+        if (directory.has_root_name() && !directory.has_root_directory()) {
+            throw std::runtime_error(
+                "cannot launch process: drive-relative PATH entries are not supported with cwd");
+        }
+        if (!result.empty())
+            result += L';';
+        result += (entry.empty() ? cwd : cwd / directory).native();
+        if (end == std::wstring::npos)
+            break;
+        start = end + 1;
+    } while (true);
+    return result;
+}
+
+std::wstring resolve_executable(const std::wstring &name,
+                                const std::optional<std::filesystem::path> &cwd) {
+    auto lookup = name;
+    std::optional<std::wstring> search;
+    if (cwd) {
+        const std::filesystem::path executable{name};
+        if (executable.has_root_name() && !executable.has_root_directory()) {
+            throw std::runtime_error("cannot launch process: drive-relative executable paths are "
+                                     "not supported with cwd");
+        }
+        if (executable.has_parent_path() || executable.has_root_name()) {
+            lookup = (*cwd / executable).native();
+        } else {
+            search = child_search_path(*cwd);
+        }
+    }
+    const auto *path = search ? search->c_str() : nullptr;
+    const auto size = SearchPathW(path, lookup.c_str(), L".exe", 0, nullptr, nullptr);
     if (size == 0)
         windows_error("cannot launch process: executable lookup failed");
     std::wstring result(static_cast<std::size_t>(size), L'\0');
-    const auto written = SearchPathW(nullptr, name.c_str(), L".exe", size, result.data(), nullptr);
+    const auto written = SearchPathW(path, lookup.c_str(), L".exe", size, result.data(), nullptr);
     if (written == 0 || written >= size)
         windows_error("cannot launch process: executable lookup failed");
     result.resize(written);
@@ -151,9 +200,41 @@ void inherit_standard_handle(DWORD kind, Handle &destination) {
 }
 
 } // namespace
+#else
+namespace {
+
+class FileActions {
+  public:
+    FileActions() {
+        const auto error = posix_spawn_file_actions_init(&value_);
+        if (error != 0)
+            throw std::system_error(error, std::generic_category(),
+                                    "cannot initialize process actions");
+    }
+    ~FileActions() {
+        posix_spawn_file_actions_destroy(&value_);
+    }
+    FileActions(const FileActions &) = delete;
+    FileActions &operator=(const FileActions &) = delete;
+    void chdir(const std::filesystem::path &directory) {
+        const auto error = TATR_SPAWN_CHDIR(&value_, directory.c_str());
+        if (error != 0)
+            throw std::system_error(error, std::generic_category(),
+                                    "cannot set child working directory");
+    }
+    const posix_spawn_file_actions_t *get() const {
+        return &value_;
+    }
+
+  private:
+    posix_spawn_file_actions_t value_{};
+};
+
+} // namespace
 #endif
 
-ProcessResult run_process(std::span<const std::string> arguments) {
+ProcessResult run_process(std::span<const std::string> arguments,
+                          const std::optional<std::filesystem::path> &cwd) {
     if (arguments.empty() || arguments.front().empty()) {
         throw std::runtime_error("process requires an executable name");
     }
@@ -162,8 +243,17 @@ ProcessResult run_process(std::span<const std::string> arguments) {
             throw std::runtime_error("process arguments cannot contain NUL");
         }
     }
+    if (cwd) {
+        if (!cwd->is_absolute() || cwd->native().find(std::filesystem::path::value_type{}) !=
+                                       std::filesystem::path::string_type::npos) {
+            throw std::runtime_error("working directory must be absolute and contain no NUL");
+        }
+        if (!std::filesystem::is_directory(*cwd)) {
+            throw std::runtime_error("working directory does not exist or is not a directory");
+        }
+    }
 #ifdef _WIN32
-    const auto executable = resolve_executable(widen(arguments.front()));
+    const auto executable = resolve_executable(widen(arguments.front()), cwd);
     std::wstring command;
     for (const auto &argument : arguments) {
         if (!command.empty())
@@ -193,7 +283,7 @@ ProcessResult run_process(std::span<const std::string> arguments) {
     PROCESS_INFORMATION information{};
     if (!CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr,
                         inherited.empty() ? FALSE : TRUE, EXTENDED_STARTUPINFO_PRESENT, nullptr,
-                        nullptr, &startup.StartupInfo, &information)) {
+                        cwd ? cwd->c_str() : nullptr, &startup.StartupInfo, &information)) {
         windows_error("cannot launch process");
     }
     process.value = information.hProcess;
@@ -211,8 +301,14 @@ ProcessResult run_process(std::span<const std::string> arguments) {
     for (const auto &argument : arguments)
         argv.push_back(const_cast<char *>(argument.c_str()));
     argv.push_back(nullptr);
+    std::optional<FileActions> actions;
+    if (cwd) {
+        actions.emplace();
+        actions->chdir(*cwd);
+    }
     pid_t child = 0;
-    const auto error = posix_spawnp(&child, argv[0], nullptr, nullptr, argv.data(), environ);
+    const auto error = posix_spawnp(&child, argv[0], actions ? actions->get() : nullptr, nullptr,
+                                    argv.data(), environ);
     if (error != 0) {
         throw std::system_error(error, std::generic_category(), "cannot launch process");
     }

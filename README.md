@@ -33,20 +33,24 @@ version = 1
 description = "Build the project"
 depends = ["configure"]
 exec = ["cmake", "--build", "--preset", "dev"]
+cwd = "."
 
 [tasks.configure]
 exec = ["cmake", "--preset", "dev"]
+cwd = "."
 ```
 
-Tasks support optional `description`, `depends`, and `exec` fields. `plan TASK`
+Tasks support optional `description`, `depends`, `exec`, and `cwd` fields. `plan TASK`
 prints prerequisites in their declared order, each once, with the target last.
 `run TASK` executes that order; tasks without `exec` group their prerequisites.
 All commands validate the entire configuration first. `list` and `plan` execute
 nothing. See [configuration and CLI rules](docs/configuration.md).
 
 Commands are argument arrays, with no implicit shell or expansion. Programs inherit
-your working directory, environment, and standard I/O. Run the example from the
-repository root. Exit codes are 0 for success, 1 for a failed child (original status
+your environment and standard I/O. Working directories are inherited unless `cwd`
+is provided; relative values resolve from the configuration file's directory.
+The checked-in example uses `cwd = ".."` to run from the repository root regardless
+of the caller's directory. Exit codes are 0 for success, 1 for a failed child (original status
 reported on stderr), and 2 for configuration, CLI, or launch errors.
 
 ## Build
@@ -55,6 +59,8 @@ Requirements: CMake 3.25 or newer, a compiler supporting C++23, and a C17 compil
 for the vendored TOML parser. On Windows,
 install the Visual Studio C++ build tools. On Linux and macOS, use an appropriate
 GCC or Clang toolchain and a supported CMake build tool.
+POSIX builds require a libc with a child-directory spawn action; CMake checks
+for the standard function or its `_np` variant.
 
 ```sh
 cmake --preset dev
@@ -106,8 +112,9 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - [Dependency-planning increment](docs/dependency-planning.md): completed approved scope.
 - [Command-execution increment](docs/command-execution.md): completed approved scope.
 - [Safety-hardening increment](docs/safety-hardening.md): completed approved scope.
+- [Working-directory increment](docs/task-working-directories.md): completed approved scope.
 - [Development checks](docs/development.md): local gates and proposed CI workflow.
 - [Next increment](docs/next-increment.md): proposal awaiting review.
 
-Each increment is planned and reviewed before implementation. Working-directory
-and environment overrides, parallelism, and caching remain future work.
+Each increment is planned and reviewed before implementation. Environment
+overrides, parallelism, and caching remain future work.

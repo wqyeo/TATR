@@ -7,14 +7,20 @@ namespace tatr {
 void run_task(const Config &config, std::string_view target) {
     const auto order = plan_task(config, target);
     for (const auto &name : order) {
-        const auto &command = config.tasks.at(name).exec;
+        const auto &task = config.tasks.at(name);
+        const auto &command = task.exec;
         if (command.empty())
             continue;
         ProcessResult result;
         try {
-            result = run_process(command);
+            result = run_process(command, task.cwd);
         } catch (const std::exception &error) {
-            throw std::runtime_error("task '" + name + "': " + error.what());
+            std::string context = "task '" + name + "'";
+            if (task.cwd) {
+                const auto encoded = task.cwd->u8string();
+                context += " (cwd '" + std::string{encoded.begin(), encoded.end()} + "')";
+            }
+            throw std::runtime_error(context + ": " + error.what());
         }
         if (result.signal != 0) {
             throw TaskFailure("task '" + name + "': terminated by signal " +

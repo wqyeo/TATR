@@ -4,7 +4,7 @@ set(cases
     missing_file malformed duplicate_key missing_version wrong_version version_string
     version_float version_boolean missing_tasks tasks_array task_scalar task_array
     description_type unknown_root unknown_task
-    unsupported_cwd unsupported_env empty_name control_name control_description
+    unsupported_env empty_name control_name control_description
     c1_name c1_description nul_description nul_key no_parent_search late_invalid_task
     unknown_option unknown_command extra_argument duplicate_command missing_file_argument
     empty_file_argument option_as_file duplicate_file missing_command misplaced_help
@@ -25,6 +25,25 @@ foreach(case IN LISTS cases)
         "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cases/${case}"
         "-DVERSION=${PROJECT_VERSION}"
         -P ${CMAKE_CURRENT_SOURCE_DIR}/cli.cmake)
+endforeach()
+
+set(cwd_cases
+    relative absolute dot unicode relative_file independent parent_unchanged
+    missing not_directory prerequisite_created relative_executable absolute_executable
+    path_absolute path_relative path_empty_entry path_missing
+    list_missing plan_missing unrelated_missing invalid_unrelated
+    empty type_integer type_array type_boolean nul_path grouping launch_failure child_failure
+)
+if(WIN32)
+    list(APPEND cwd_cases drive_relative drive_relative_executable drive_relative_path)
+else()
+    list(APPEND cwd_cases symlink_parent)
+endif()
+foreach(case IN LISTS cwd_cases)
+    add_test(NAME cwd.${case} COMMAND ${CMAKE_COMMAND}
+        "-DTATR=$<TARGET_FILE:tatr>" "-DCHILD=$<TARGET_FILE:tatr_test_child>"
+        "-DCASE=${case}" "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cwd/${case}"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cwd.cmake)
 endforeach()
 
 add_executable(tatr_test_child child.cpp)

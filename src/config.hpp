@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,8 @@ struct Task {
     std::vector<std::string> depends;
     // Empty means a grouping task; an explicitly empty exec array is invalid.
     std::vector<std::string> exec;
+    // Resolved against the config file's directory; absent inherits caller cwd.
+    std::optional<std::filesystem::path> cwd;
 };
 
 struct Config {

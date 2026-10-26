@@ -63,7 +63,8 @@ exec = ["cmake", "--build", "--preset", "dev"]
 4. Establish local strict builds, static analysis, sanitizers, bounded config
    input, and restricted Windows handle inheritance (implemented; see
    [development checks](development.md)).
-5. Add task working directories and environment overrides with explicit semantics.
+5. Add task working directories resolved from the configuration file (implemented).
+6. Add task environment overrides with explicit inheritance and lookup semantics.
 
 Each increment needs review before implementation. Tests should cover meaningful
 behavior as it is introduced. Parallel execution, caching, remote execution,

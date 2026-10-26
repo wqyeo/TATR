@@ -1,6 +1,60 @@
 # Verification results
 
-## C++ safety-hardening increment (current)
+## Task working-directory increment (current)
+
+Verified on 2026-10-26. See [the approved plan](task-working-directories.md)
+and [the configuration contract](configuration.md).
+
+- Windows x64 MSVC 19.51.36260.0 / CMake 4.3.2: strict build and **152 tests
+  passed**. Clang-format verification, Linux clang-tidy analysis, and native
+  Windows release compilation also passed.
+- Linux x64 Alpine 3.21 / Clang 19.1.4 / CMake 3.31.1: strict quality build and
+  **146 tests passed**. The instrumented parser/application/child build passed
+  **148 ASan/UBSan tests**, including both sanitizer-propagation probes.
+- Linux x64 GCC 14.2.0: strict MinSizeRel build and **146 tests passed**.
+- Coverage adds relative/absolute/dot/Unicode/spaced working directories, relative
+  --file, independent task directories, preservation of the caller's directory,
+  prerequisite-created directories, missing/non-directory paths, executable and
+  PATH lookup, read-only commands, unrelated missing directories, invalid fields,
+  and stopping subsequent tasks on directory/launch/child failures. POSIX checks
+  symlink/.. semantics; Windows checks rejection of ambiguous drive-relative forms.
+- The old unsupported-cwd fixture was replaced by schema and runtime coverage.
+  Windows fixture names avoid reserved device names; the NUL-value test uses
+  `nul_path` as its directory name.
+
+POSIX CMake probes select `posix_spawn_file_actions_addchdir_np` on the tested
+Alpine libc; the standard name is preferred when available. The implementation
+uses RAII spawn actions, never parent chdir. Windows uses a child directory plus
+explicit executable resolution; its handle allowlist remains intact. No new
+production dependency or remote CI configuration was introduced.
+
+| Release executable | Current bytes | Current KiB | Previous bytes | Change |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64, static MSVC runtime | 350,208 | 342.0 | 334,848 | +15,360 |
+| Alpine Linux x64 GCC, shared runtime, unstripped | 100,400 | 98.0 | 95,216 | +5,184 |
+
+Runtime dependencies remain `KERNEL32.dll` on Windows and `libstdc++.so.6`,
+`libgcc_s.so.1`, and `libc.musl-x86_64.so.1` on Alpine, verified using dumpbin and
+readelf. Developer tooling and shared-library footprints are excluded.
+
+Commands use the existing strict, quality, and sanitizer workflows. GCC uses the
+same pinned tool image and flags recorded below. Logs under `build/` are
+`cwd-windows-tests.log`, `cwd-quality-run.log`, `cwd-sanitizer-run.log`, and
+`cwd-gcc-run.log`. The example workflow now explicitly selects the repository
+directory through `cwd = ".."` in every executable task. The Windows release
+binary ran that configure/build/test workflow successfully from `build/` rather
+than the repository root; all 152 checks passed. Installation and installed-binary
+execution with an explicit task directory also passed. The example log is
+`cwd-example-run.log` under `build/`.
+
+macOS, MinGW, other architectures/libcs, permission-denial cases, and concurrent
+directory rename/removal remain unverified. Older libcs without either directory
+spawn API fail configuration; their deployment compatibility is not established.
+Directory checks are not race-proof, and this is not a filesystem sandbox.
+Cancellation, descendant cleanup, memory budgets, and startup-time guarantees
+remain outside the increment.
+
+## C++ safety-hardening increment (historical baseline)
 
 Verified on 2026-10-26. The approved scope is recorded in
 [the completed plan](safety-hardening.md); commands and tool policy are in

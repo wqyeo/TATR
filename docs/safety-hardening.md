@@ -4,7 +4,8 @@ Status: approved, implemented, and verified.
 
 The user approved the seven steps below. See [the development workflow](development.md)
 and [verification results](verification.md) for implementation details and evidence.
-The [task working-directory proposal](next-increment.md) awaits separate approval.
+The subsequent [task working-directory increment](task-working-directories.md)
+was reviewed separately.
 
 ## Outcome
 

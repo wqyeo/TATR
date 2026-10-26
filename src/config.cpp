@@ -121,7 +121,7 @@ Config load_config(const std::filesystem::path &file) {
         if (task.type != TOML_TABLE) {
             invalid(path, task, context, "expected a table");
         }
-        check_fields(task, {"description", "depends", "exec"}, path, context);
+        check_fields(task, {"description", "depends", "exec", "cwd"}, path, context);
         const auto description = toml_get(task, "description");
         Task model;
         if (description.type != TOML_UNKNOWN) {
@@ -179,6 +179,28 @@ Config load_config(const std::filesystem::path &file) {
                 }
                 model.exec.push_back(std::move(argument));
             }
+        }
+        const auto cwd = toml_get(task, "cwd");
+        if (cwd.type != TOML_UNKNOWN) {
+            if (cwd.type != TOML_STRING || cwd.u.str.len == 0) {
+                invalid(path, cwd, context + ".cwd", "expected a nonempty directory string");
+            }
+            const std::string directory{cwd.u.str.ptr, static_cast<std::size_t>(cwd.u.str.len)};
+            if (directory.find('\0') != std::string::npos) {
+                invalid(path, cwd, context + ".cwd", "NUL characters are not allowed");
+            }
+            if (model.exec.empty()) {
+                invalid(path, cwd, context + ".cwd", "requires an executable task");
+            }
+            const std::filesystem::path selected{std::u8string{directory.begin(), directory.end()}};
+#ifdef _WIN32
+            if (selected.has_root_name() && !selected.has_root_directory()) {
+                invalid(path, cwd, context + ".cwd", "drive-relative paths are not supported");
+            }
+#endif
+            // Do not canonicalize: the directory may be created by a prerequisite,
+            // and lexical normalization would change symlink/.. semantics.
+            model.cwd = std::filesystem::absolute(file).parent_path() / selected;
         }
         config.tasks.emplace(name, std::move(model));
     }
