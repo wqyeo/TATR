@@ -77,7 +77,16 @@ exec = ["cmake", "--build", "--preset", "dev"]
 11. Prepare local release archives and verify extracted distributions
     ([completed; 0.1.0a publication authorized](release-packaging-increment.md)).
 12. Verify a glibc Linux x64 baseline and prepare a local compatible archive
-    ([pending proposal](next-increment.md)). Performance benchmarking remains deferred.
+    ([completed](glibc-linux.md); included in 0.2.0a).
+13. Add a curated changelog and a lean README explaining when to use TATR
+    ([completed](changelog-readme.md)). Performance benchmarking remains deferred.
+14. Exercise real application, file/archive and database backup/restore workflows
+    ([completed locally](workflow-verification.md); see verification results).
+15. Add run-completion command hooks, followed by separately reviewed structured
+    SMTP notifications through an external client (hooks implemented;
+    [SMTP implemented](smtp.md); included in 0.2.0a).
+16. Commit, package and publish the approved work as 0.2.0a
+    ([release plan](release-0.2.0a.md)).
 
 Each increment needs review before implementation. Tests should cover meaningful
 behavior as it is introduced. Parallel execution, caching, remote execution,

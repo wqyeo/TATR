@@ -228,6 +228,8 @@ void Logger::write(const LogRecord &record) try {
         line += " signal=" + std::to_string(*record.signal);
     if (record.duration_ms)
         line += " duration_ms=" + std::to_string(*record.duration_ms);
+    if (!record.task_outcome.empty())
+        line += " task_outcome=" + std::string{record.task_outcome};
     if (!record.message.empty())
         line += " message=" + log_quote(record.message);
     line += '\n';

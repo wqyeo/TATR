@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(tatr VERSION 0.1.0 LANGUAGES C CXX)
+project(tatr VERSION 0.2.0 LANGUAGES C CXX)
 set(TATR_VERSION "${PROJECT_VERSION}a")
 configure_file(cmake/build-info.cmake.in tatr-build-info.cmake @ONLY)
 
@@ -17,9 +17,14 @@ target_include_directories(tomlc17 SYSTEM PUBLIC third_party/tomlc17)
 set_target_properties(tomlc17 PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 tatr_sanitizers(tomlc17)
 
-add_library(tatr_core STATIC src/config.cpp src/cli.cpp src/dotenv.cpp src/logging.cpp src/planner.cpp src/process.cpp src/runner.cpp)
+find_package(Threads REQUIRED)
+
+add_library(tatr_core STATIC src/config.cpp src/cli.cpp src/dotenv.cpp src/logging.cpp src/planner.cpp src/process.cpp src/runner.cpp src/smtp.cpp)
 target_include_directories(tatr_core PUBLIC src)
-target_link_libraries(tatr_core PRIVATE tomlc17)
+target_link_libraries(tatr_core PRIVATE tomlc17 Threads::Threads)
+if(WIN32)
+    target_link_libraries(tatr_core PRIVATE advapi32)
+endif()
 target_compile_features(tatr_core PUBLIC cxx_std_23)
 set_target_properties(tatr_core PROPERTIES CXX_EXTENSIONS OFF)
 target_compile_definitions(tatr_core PRIVATE TATR_VERSION="${TATR_VERSION}")

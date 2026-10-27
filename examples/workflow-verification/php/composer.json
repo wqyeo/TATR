@@ -1,0 +1,8 @@
+{
+  "name": "tatr/php-fixture",
+  "description": "Disposable TATR workflow fixture",
+  "license": "MIT",
+  "repositories": [{ "type": "path", "url": "dependency", "options": { "symlink": false } }],
+  "require": { "fixture/message": "^1.0" },
+  "scripts": { "build": "php build.php" }
+}

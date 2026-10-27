@@ -1,0 +1,8 @@
+FROM docker.io/library/debian@sha256:ec31d744f83f4a73447ba045aaab9409997efe5cc706eca4890c1be36cc1606a
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       g++=4:12.2.0-3 g++-12=12.2.0-14+deb12u1 gcc-12=12.2.0-14+deb12u1 \
+       cmake=3.25.1-1 ninja-build=1.11.1-2~deb12u1 binutils=2.40-2 \
+       libc6=2.36-9+deb12u14 libstdc++6=12.2.0-14+deb12u1 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src

@@ -20,10 +20,12 @@ Usage:
   tatr --version
 
 Defaults to tatr.toml in the current directory; no parent-directory search.
-Run executes argument arrays directly, in dependency order, stopping on failure.
+Run executes direct commands or configured SMTP actions in dependency order, stopping on failure.
 Task cwd paths resolve from the configuration file's directory; absent inherits cwd.
 Task env tables override selected inherited variables for that child only.
 Task env_file paths resolve from the config directory; inline env wins over file values.
+Optional completion hooks run after tasks, selected from the original run outcome.
+SMTP actions use external curl with verified TLS; runtime arguments require an exec task.
 Run action records go to stderr by default; logging.file enables append-only log files.
 Arguments after -- are appended literally to the target command, not prerequisites.
 )";

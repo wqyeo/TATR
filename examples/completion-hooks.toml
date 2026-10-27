@@ -1,0 +1,17 @@
+version = 1
+
+[tasks.demo]
+description = "Successful example with a completion summary"
+exec = ["cmake", "-E", "echo", "Demo succeeded"]
+
+[tasks.failure]
+description = "Deliberate failure; completion hook still runs"
+exec = ["cmake", "-E", "false"]
+
+[[hooks]]
+name = "completion-summary"
+when = "always"
+targets = ["demo", "failure"]
+exec = ["cmake", "-P", "hook-summary.cmake"]
+cwd = "."
+on_error = "warn"

@@ -1,0 +1,42 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "896ae054f29923fbf4d34964b50fed72",
+    "packages": [
+        {
+            "name": "fixture/message",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "dependency",
+                "reference": "e3da772528e0b7f58c6cc19d48eb6e0737b81996"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "message.php"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Local fixture dependency",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": [],
+    "plugin-api-version": "2.3.0"
+}

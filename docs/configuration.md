@@ -45,9 +45,12 @@ description = "A quoted name containing a dot"
 - The optional `exec` array contains argument strings, starting with a nonempty
   executable name. Explicitly empty arrays, wrong types, and embedded NULs are
   rejected. Subsequent arguments may be empty and may contain other control
-  characters such as tabs/newlines. An absent `exec` makes a grouping task.
+  characters such as tabs/newlines. A task with neither `exec` nor `smtp` is a group.
+- Optional `smtp` selects a structured email action instead of `exec`; see
+  [SMTP configuration](smtp.md). Both fields together are invalid. SMTP tasks
+  require explicit body/body_file and do not accept runtime arguments.
 - The optional `cwd` is a nonempty directory string without NUL. It requires an
-  `exec` field; grouping tasks cannot specify a process directory.
+  command or SMTP action; grouping tasks cannot specify a process directory.
 - The optional `env` table overrides selected inherited environment variables for
   an executable task; values must be strings and may be empty. Names must match
   `[A-Za-z_][A-Za-z0-9_]*`. NUL values and env fields on grouping tasks are rejected.
@@ -55,13 +58,15 @@ description = "A quoted name containing a dot"
   an executable task. Relative paths resolve from the TOML directory. Absolute
   paths are accepted; Windows drive-relative paths are rejected.
 - Optional root `logging` configures action records, as described below.
-- Unknown root/task/logging fields are rejected. TOML duplicate keys are parse errors.
+- Optional root `hooks` configures run-completion command or SMTP actions; see [completion hooks](completion-hooks.md).
+- Unknown root/task/hook/logging fields are rejected. TOML duplicate keys are parse errors.
 
 ## Action logging
 
 `run` emits synchronous logfmt-style UTF-8 `key=value` records on stderr by default.
 `list`/`plan` keep their existing stdout formats and emit no action records.
-No additional library, thread, color, or shell is involved.
+Logging adds no library, thread, color or shell. SMTP separately uses a scoped
+stdin writer and an external client; see its transport rules.
 
 ```toml
 [logging]
@@ -78,10 +83,11 @@ console logging and no file. A `[logging.file]` table enables file logging,
 defaulting to directory `logs` and filename `tatr-{date}-{time}-{pid}.log`.
 Its only supported fields are nonempty string `directory` and `filename`.
 `console` must be boolean. `level` accepts `info`, `warn`, `error`, or `off`,
-in increasing severity. A shared threshold applies to both sinks. This increment
-emits informational lifecycle events and error outcomes; no warning events are
-currently needed. `warn` and `error` therefore both suppress successful lifecycle
-records while preserving errors. Filtered logging may create an empty log file.
+in increasing severity. A shared threshold applies to both sinks. TATR emits
+informational lifecycle events, error outcomes and warnings for ignored hook
+failures. `warn` preserves warnings and errors; `error` suppresses warning action
+records (hook failures still get a stderr diagnostic). Filtered logging may
+create an empty log file.
 
 Set `console = false` for file-only records. Without a file, console=false
 requires level=off. `off` creates no log directories/files and suppresses action
@@ -134,10 +140,12 @@ time=2026-10-27T08:00:02.000Z level=info event=run_finished target="check" outco
 ```
 
 Valid runs, including grouping-only runs, produce run_started/run_finished.
-Only executable tasks produce task_started/task_finished; shared prerequisites
+Completion hooks have separate lifecycle events and final-result rules documented
+in [completion hooks](completion-hooks.md). Only executable tasks produce
+task_started/task_finished; shared prerequisites
 appear once and skipped tasks have no records. task_started precedes dotenv
 loading. Steady-clock durations include dotenv loading and child execution;
-wall-clock time is used only for timestamps/names. Outcomes are `success`,
+wall-clock time is used only for timestamps/names. Task outcomes are `success`,
 `child_failure`, or `runner_error`. Completed children include their native
 `exit_code`, or POSIX `signal` on signal termination. Failure records include an
 escaped `message`; task outcomes and the run summary are distinct records.
@@ -150,7 +158,7 @@ inherited by the console and are not captured/teed into log files. Children can
 print their own secrets. Ordering across child streams and action records is not
 guaranteed.
 
-A sink failure returns 2 and prevents the next task. Failed task_started logging
+A sink failure returns 2 and prevents the next task or hook. Failed task_started logging
 prevents launch; failed task_finished logging occurs after the child completed.
 Earlier side effects remain. Sink failures use direct stderr fallback without
 recursive logging; if stderr also fails, exit status remains 2. Children are not
@@ -232,11 +240,12 @@ exit 1. Runtime arguments do not override the executable, cwd, or env fields.
 ### Execution order and failures
 
 `run TASK` follows the same order as `plan TASK`. Each reachable task is processed
-once; tasks without `exec` succeed after their prerequisites and launch no process.
+once; tasks with neither `exec` nor `smtp` succeed after their prerequisites
+and launch no process. SMTP tasks use the [SMTP transport contract](smtp.md).
 The runner waits for each child to finish before starting the next task. Unknown
 targets and malformed arguments fail before any child runs.
 
-Children inherit stdin, stdout, and stderr, and the environment except for declared
+Direct exec children inherit stdin, stdout, and stderr, and the environment except for declared
 `env_file`/`env` overrides. Without `cwd`, they
 also inherit the caller's directory. With `cwd`, the rules below apply. Relative
 script arguments are interpreted by the child program from its working directory;

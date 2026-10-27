@@ -1,0 +1,41 @@
+version = 1
+
+[tasks.email]
+description = "Send an explicit SMTP message after configuring your server"
+env_file = ".env.smtp"
+
+[tasks.email.smtp]
+host = "smtp.example.com"
+port = 587
+tls = "starttls"
+from = "deploy@example.com"
+to = ["operations@example.com"]
+subject = "TATR email example"
+body = "An explicit email task ran through TATR."
+
+[tasks.email.smtp.auth]
+username_env = "SMTP_USERNAME"
+password_env = "SMTP_PASSWORD"
+
+[tasks.deploy-demo]
+description = "Portable example deployment; replace with your own command"
+exec = ["cmake", "-E", "echo", "Example deployment completed"]
+
+[[hooks]]
+name = "deployment-email"
+when = "always"
+targets = ["deploy-demo"]
+on_error = "warn"
+env_file = ".env.smtp"
+
+[hooks.smtp]
+host = "smtp.example.com"
+port = 587
+tls = "starttls"
+from = "deploy@example.com"
+to = ["operations@example.com"]
+subject = "TATR deployment result"
+
+[hooks.smtp.auth]
+username_env = "SMTP_USERNAME"
+password_env = "SMTP_PASSWORD"

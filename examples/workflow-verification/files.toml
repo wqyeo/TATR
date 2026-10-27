@@ -1,0 +1,9 @@
+version = 1
+
+[logging.file]
+directory = "logs"
+filename = "file-actions.log"
+
+[tasks.files]
+exec = ["cmake", "-P", "files.cmake"]
+cwd = "."

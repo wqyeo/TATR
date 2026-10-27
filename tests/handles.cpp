@@ -40,16 +40,17 @@ int wmain(int argc, wchar_t **argv) {
         std::vector<std::string> command{
             child, "handle_excluded",
             std::to_string(reinterpret_cast<std::uintptr_t>(event.value))};
-        if (mode == L"absent_standard_handles") {
+        if (mode == L"absent_standard_handles" || mode == L"absent_private_input") {
             if (!SetStdHandle(STD_INPUT_HANDLE, nullptr) ||
                 !SetStdHandle(STD_OUTPUT_HANDLE, nullptr) ||
                 !SetStdHandle(STD_ERROR_HANDLE, nullptr))
                 return 92;
-        } else if (mode == L"launch_failure_cleanup") {
+        } else if ((mode == L"launch_failure_cleanup" ||
+                    mode == L"private_input_launch_failure_cleanup")) {
             // Preserve a recognizable PE image but make its subsystem invalid,
             // exercising CreateProcess failure after handle/attribute setup.
-            const auto image =
-                std::filesystem::path{argv[1]}.parent_path() / L"unsupported-subsystem.exe";
+            const auto image = std::filesystem::path{argv[1]}.parent_path() /
+                               (L"unsupported-subsystem-" + mode + L".exe");
             std::filesystem::copy_file(std::filesystem::path{argv[1]}, image,
                                        std::filesystem::copy_options::overwrite_existing);
             {
@@ -68,9 +69,12 @@ int wmain(int argc, wchar_t **argv) {
             const auto image_utf8 = image.u8string();
             const std::vector<std::string> invalid{
                 std::string{image_utf8.begin(), image_utf8.end()}};
-            const auto fails_at_create = [&invalid] {
+            const auto fails_at_create = [&invalid, &mode] {
                 try {
-                    (void)tatr::run_process(invalid);
+                    (void)tatr::run_process(invalid, {}, {},
+                                            mode == L"private_input_launch_failure_cleanup"
+                                                ? std::optional{tatr::ProcessInput{"config", true}}
+                                                : std::nullopt);
                 } catch (const std::exception &error) {
                     if (!std::string{error.what()}.starts_with(
                             "cannot launch process (Windows error "))
@@ -93,10 +97,14 @@ int wmain(int argc, wchar_t **argv) {
             DWORD after = 0;
             if (!GetProcessHandleCount(GetCurrentProcess(), &after) || before != after)
                 return 96;
-        } else if (mode != L"excluded") {
+        } else if (mode != L"excluded" && mode != L"private_input") {
             return 97;
         }
-        const auto result = tatr::run_process(command);
+        const auto result =
+            tatr::run_process(command, {}, {},
+                              (mode == L"private_input" || mode == L"absent_private_input")
+                                  ? std::optional{tatr::ProcessInput{"", true}}
+                                  : std::nullopt);
         if (result.exit_code != 0 || result.signal != 0)
             return 98;
         // A signaled event would prove the child received our unrelated handle.

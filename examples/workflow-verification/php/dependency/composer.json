@@ -1,0 +1,7 @@
+{
+  "name": "fixture/message",
+  "version": "1.0.0",
+  "description": "Local fixture dependency",
+  "license": "MIT",
+  "autoload": { "files": ["message.php"] }
+}

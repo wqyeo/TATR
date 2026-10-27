@@ -1,0 +1,46 @@
+# Copy with database-step.ps1 into a fresh test directory; runner generates .env.
+version = 1
+
+[logging.file]
+directory = "logs"
+filename = "database-actions.log"
+
+[tasks.seed]
+exec = ["powershell.exe", "-NoProfile", "-File", "database-step.ps1", "seed"]
+cwd = "."
+env_file = ".env"
+
+[tasks.dump]
+depends = ["seed"]
+exec = ["powershell.exe", "-NoProfile", "-File", "database-step.ps1", "dump"]
+cwd = "."
+env_file = ".env"
+
+[tasks.archive]
+depends = ["dump"]
+exec = ["powershell.exe", "-NoProfile", "-File", "database-step.ps1", "archive"]
+cwd = "."
+env_file = ".env"
+
+[tasks.restore]
+depends = ["archive"]
+exec = ["powershell.exe", "-NoProfile", "-File", "database-step.ps1", "restore"]
+cwd = "."
+env_file = ".env"
+
+[tasks.verify]
+depends = ["restore"]
+exec = ["powershell.exe", "-NoProfile", "-File", "database-step.ps1", "verify"]
+cwd = "."
+env_file = ".env"
+
+[tasks.sql-error]
+exec = ["powershell.exe", "-NoProfile", "-File", "database-step.ps1", "sql-error"]
+cwd = "."
+env_file = ".env"
+
+[tasks.must-not-run]
+depends = ["sql-error"]
+exec = ["powershell.exe", "-NoProfile", "-File", "database-step.ps1", "marker"]
+cwd = "."
+env_file = ".env"

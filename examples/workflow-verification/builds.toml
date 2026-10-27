@@ -1,0 +1,70 @@
+version = 1
+
+[logging.file]
+directory = "logs"
+filename = "build-actions.log"
+
+[tasks.node-install]
+exec = ["npm", "ci", "--offline", "--no-audit", "--no-fund"]
+cwd = "node"
+
+[tasks.node-default]
+depends = ["node-install"]
+exec = ["npm", "run", "build"]
+cwd = "node"
+env_file = ".env.example"
+
+[tasks.node-custom]
+depends = ["node-default"]
+exec = ["npm", "run", "build", "--", "../custom node output"]
+cwd = "node"
+env_file = ".env.example"
+
+[tasks.php-install]
+exec = ["composer", "install", "--no-interaction", "--no-plugins", "--no-scripts"]
+cwd = "php"
+env = { COMPOSER_ALLOW_SUPERUSER = "1", COMPOSER_DISABLE_NETWORK = "1" }
+
+[tasks.php-validate]
+depends = ["php-install"]
+exec = ["composer", "validate", "--strict", "--no-check-publish"]
+cwd = "php"
+env = { COMPOSER_ALLOW_SUPERUSER = "1", COMPOSER_DISABLE_NETWORK = "1" }
+
+[tasks.php-lint]
+depends = ["php-validate"]
+exec = ["php", "-l", "build.php"]
+cwd = "php"
+
+[tasks.php-default]
+depends = ["php-lint"]
+exec = ["composer", "run-script", "build"]
+cwd = "php"
+env_file = ".env.example"
+env = { COMPOSER_ALLOW_SUPERUSER = "1", COMPOSER_DISABLE_NETWORK = "1" }
+
+[tasks.php-custom]
+depends = ["php-default"]
+exec = ["composer", "run-script", "build", "--", "../custom php output"]
+cwd = "php"
+env_file = ".env.example"
+env = { COMPOSER_ALLOW_SUPERUSER = "1", COMPOSER_DISABLE_NETWORK = "1" }
+
+[tasks.stage]
+depends = ["node-custom", "php-custom"]
+exec = ["python3", "check-builds.py"]
+cwd = "."
+
+[tasks.archive-builds]
+depends = ["stage"]
+exec = ["python3", "check-build-archives.py"]
+cwd = "."
+
+[tasks.build-fail]
+exec = ["npm", "run", "missing-script"]
+cwd = "node"
+
+[tasks.must-not-run]
+depends = ["build-fail"]
+exec = ["cmake", "-E", "touch", "build-failure-marker"]
+cwd = "."

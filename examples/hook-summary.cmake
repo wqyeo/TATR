@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.25)
+message(STATUS "Target: $ENV{TATR_TARGET}; outcome: $ENV{TATR_OUTCOME}; status: $ENV{TATR_STATUS}; task duration: $ENV{TATR_DURATION_MS} ms")
+if(NOT "$ENV{TATR_FAILED_TASK}" STREQUAL "")
+    message(STATUS "Failed task: $ENV{TATR_FAILED_TASK}; child exit: $ENV{TATR_CHILD_EXIT_CODE}; signal: $ENV{TATR_CHILD_SIGNAL}")
+endif()

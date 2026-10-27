@@ -184,7 +184,7 @@ if(WIN32)
         target_link_options(tatr_test_handles PRIVATE -municode)
     endif()
     tatr_developer_checks(tatr_test_handles)
-    foreach(case excluded absent_standard_handles launch_failure_cleanup)
+    foreach(case excluded absent_standard_handles launch_failure_cleanup private_input absent_private_input private_input_launch_failure_cleanup)
         add_test(NAME safety.handles_${case}
             COMMAND tatr_test_handles $<TARGET_FILE:tatr_test_child> ${case})
     endforeach()
@@ -210,4 +210,60 @@ foreach(case IN LISTS execution_cases)
         "-DCASE=${case}"
         "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/execution/${case}"
         -P ${CMAKE_CURRENT_SOURCE_DIR}/execution.cmake)
+endforeach()
+
+set(hook_cases success failure runner cwd dotenv skip_success skip_failure group shared
+    filter_skip filter_match filter_prerequisite arguments context context_file hook_env hook_cwd
+    warn fail hook_launch hook_dotenv hook_missing_cwd precedence original preserve_runner
+    off error_level order list plan unknown_target group_args invalid_graph logger_open
+    invalid_name invalid_control invalid_when invalid_missing_when invalid_policy invalid_targets
+    invalid_target invalid_duplicate_target invalid_exec invalid_missing_exec invalid_env
+    invalid_field invalid_type invalid_duplicate)
+if(NOT WIN32)
+    list(APPEND hook_cases signal)
+endif()
+foreach(case IN LISTS hook_cases)
+    add_test(NAME hooks.${case} COMMAND ${CMAKE_COMMAND}
+        "-DTATR=$<TARGET_FILE:tatr>" "-DCHILD=$<TARGET_FILE:tatr_test_child>"
+        "-DCASE=${case}" "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/hooks/${case}"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/hooks.cmake)
+endforeach()
+
+foreach(target IN ITEMS tatr_test_smtp tatr_test_smtp_client)
+    if(target STREQUAL "tatr_test_smtp")
+        set(source smtp.cpp)
+    else()
+        set(source smtp-client.cpp)
+    endif()
+    add_executable(${target} ${source})
+    target_link_libraries(${target} PRIVATE tatr_core)
+    set_target_properties(${target} PROPERTIES CXX_EXTENSIONS OFF)
+    if(MSVC)
+        set_property(TARGET ${target} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        target_compile_options(${target} PRIVATE /W4 /permissive- /utf-8)
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+    if(MINGW)
+        target_link_options(${target} PRIVATE -municode)
+    endif()
+    tatr_developer_checks(${target})
+endforeach()
+add_test(NAME smtp.rendering_and_process_input COMMAND tatr_test_smtp
+    $<TARGET_FILE:tatr_test_child> "${CMAKE_CURRENT_BINARY_DIR}/smtp/unit")
+set_tests_properties(smtp.rendering_and_process_input PROPERTIES TIMEOUT 30)
+
+set(smtp_cases basic inline inherited no_auth body_file generated_body cwd client_failure
+    early_exit cleanup_error cleanup_preserves_client missing_auth empty_auth invalid_auth oversized_auth
+    client_missing body_missing body_directory body_oversize body_lone_cr body_nul body_invalid_utf8 cwd_missing dotenv_missing
+    hook_success hook_original hook_warn hook_required hook_filter hook_context_auth
+    list plan unselected arguments invalid_action invalid_type invalid_host invalid_port invalid_tls
+    invalid_header invalid_subject invalid_to invalid_duplicate_to invalid_content invalid_bodies invalid_timeout
+    invalid_field invalid_client invalid_auth_schema)
+foreach(case IN LISTS smtp_cases)
+    add_test(NAME smtp.${case} COMMAND ${CMAKE_COMMAND}
+        "-DTATR=$<TARGET_FILE:tatr>" "-DCHILD=$<TARGET_FILE:tatr_test_child>"
+        "-DCLIENT=$<TARGET_FILE:tatr_test_smtp_client>"
+        "-DCASE=${case}" "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/smtp/${case}"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/smtp.cmake)
 endforeach()

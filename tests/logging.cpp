@@ -125,7 +125,8 @@ int main(int argc, char **argv) {
         }
         // Failure on task_started must occur before even trying the invalid executable.
         tatr::Config config;
-        config.tasks["check"].exec = {"tatr-executable-that-does-not-exist"};
+        config.tasks["check"].command.action =
+            std::vector<std::string>{"tatr-executable-that-does-not-exist"};
         Buffer buffer(2);
         std::ostream broken(&buffer);
         bool sink_error = false;
@@ -147,9 +148,11 @@ int main(int argc, char **argv) {
             const auto text = marker.u8string();
             const std::string marker_text{text.begin(), text.end()};
             tatr::Config chain;
-            chain.tasks["first"].exec = {child, "record", marker_text, "first"};
+            chain.tasks["first"].command.action =
+                std::vector<std::string>{child, "record", marker_text, "first"};
             chain.tasks["last"].depends = {"first"};
-            chain.tasks["last"].exec = {child, "record", marker_text, "last"};
+            chain.tasks["last"].command.action =
+                std::vector<std::string>{child, "record", marker_text, "last"};
             Buffer interrupted(index);
             std::ostream sink(&interrupted);
             bool failed = false;
@@ -167,6 +170,33 @@ int main(int argc, char **argv) {
                 std::getline(input, line);
                 require(line == "first" && input.peek() == std::char_traits<char>::eof(),
                         "later child ran after sink failure");
+            }
+        }
+        for (const int index : {2, 3, 4}) {
+            const auto marker = root / ("hook-" + std::to_string(index) + ".txt");
+            std::filesystem::remove(marker);
+            const auto text = marker.u8string();
+            const std::string marker_text{text.begin(), text.end()};
+            tatr::Config hooks;
+            hooks.tasks["group"] = {};
+            tatr::Hook first;
+            first.name = "first";
+            first.command.action = std::vector<std::string>{child, "record", marker_text, "first"};
+            hooks.hooks.push_back(first);
+            first.name = "second";
+            std::get<std::vector<std::string>>(first.command.action).back() = "second";
+            hooks.hooks.push_back(first);
+            Buffer interrupted(index);
+            std::ostream sink(&interrupted);
+            fails([&] { (void)tatr::run_task(hooks, "group", {}, sink); });
+            if (index == 2) {
+                require(!std::filesystem::exists(marker), "failed hook start launched child");
+            } else {
+                std::ifstream input(marker);
+                std::string line;
+                std::getline(input, line);
+                require(line == "first" && input.peek() == std::char_traits<char>::eof(),
+                        "later hook ran after sink failure");
             }
         }
         return 0;

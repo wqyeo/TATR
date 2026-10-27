@@ -19,6 +19,23 @@ Git hook is installed; local tasks explicitly return a failure when a gate fails
 Normal dev/release builds retain their existing warning policy and carry no
 sanitizer instrumentation. None of these tools is a production dependency.
 
+## Changelog maintenance
+
+Record notable user-facing changes in [CHANGELOG.md](../CHANGELOG.md) under
+Unreleased, using the applicable Added, Changed, Deprecated, Removed, Fixed or
+Security category. Describe the behavior and its effect on users; omit empty
+categories and routine internal edits. Keep the newest release first and use
+YYYY-MM-DD dates verified against the actual release.
+
+At release time, move the appropriate Unreleased entries into the new version,
+update its GitLab comparison/release links and leave a fresh Unreleased section.
+Use that section as the starting point for the release announcement, adding
+installation or migration detail where useful. Preserve existing identifiers
+such as 0.1.0a; changing the versioning policy needs separate review. Local
+compatibility candidates belong under Unreleased until actually published.
+This is a manual convention based on [Keep a Changelog 2.0.0](https://keepachangelog.com/en/2.0.0/),
+with no required hook, generator or remote pipeline.
+
 `mise run strict` is equivalent to:
 
 ```sh
@@ -44,6 +61,17 @@ Sources are mounted read-only except for the explicit formatting command. Output
 mounts are `build/quality-linux` and `build/sanitizer-linux`. Avoid simultaneous
 commands that share the same output directory. Formatting must complete before
 builds or analysis start. Parallel build/test jobs are limited to two in containers.
+
+## glibc compatibility image
+
+The optional glibc compatibility image is separate from the LLVM/Alpine quality
+image: `podman build -t localhost/tatr-glibc:debian12-gcc12 -f tools/Containerfile.glibc tools`.
+It pins an amd64 Debian 12 base digest, GCC 12.2, CMake 3.25.1, Ninja 1.11.1,
+binutils 2.40, glibc 2.36 and libstdc++ package versions. Transitive APT packages
+still resolve from Debian repositories; this is not a complete snapshot mirror.
+See [glibc verification](verification.md#glibc-linux-compatibility) for the
+clean-build/test commands and runtime limitations. No GCC sanitizer or Clang tool
+claim is made for this image; the existing Alpine quality image retains that role.
 
 ## Enforced policy and exceptions
 

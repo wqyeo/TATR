@@ -45,6 +45,7 @@ struct LogRecord {
     std::optional<unsigned long long> exit_code = {};
     std::optional<int> signal = {};
     std::string_view message = {};
+    std::string_view task_outcome = {};
 };
 
 class Logger {

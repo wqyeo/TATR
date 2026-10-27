@@ -1,0 +1,7 @@
+# Opt-in integration fixture only; none of these tools are TATR dependencies.
+FROM docker.io/library/debian@sha256:ec31d744f83f4a73447ba045aaab9409997efe5cc706eca4890c1be36cc1606a
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    ca-certificates cmake libstdc++6 nodejs npm php-cli composer sqlite3 python3 zip unzip \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /work

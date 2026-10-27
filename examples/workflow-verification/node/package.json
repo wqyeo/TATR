@@ -1,0 +1,7 @@
+{
+  "name": "tatr-node-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": { "build": "node build.cjs" },
+  "dependencies": { "fixture-message": "file:./dependency" }
+}

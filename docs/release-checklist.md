@@ -79,7 +79,8 @@ Native macOS compatibility requires a macOS host and remains separate.
 - [x] Produce clearly named local platform archives with both MIT notices,
   installation/usage instructions and checksums; verify after extraction.
 - [x] Label the first Linux artifact Alpine/musl explicitly. glibc Linux remains
-  unverified and needs its own build/test/packaging increment.
+  outside those published assets. A Debian 12/glibc candidate was subsequently
+  verified locally; its publication requires separate approval.
 - [x] Scope this alpha explicitly to the tested Windows/Alpine environments and
   retain macOS as an unverified target. Verify native macOS before distributing
   or claiming a supported macOS artifact in a future release.
@@ -92,4 +93,14 @@ Native macOS compatibility requires a macOS host and remains separate.
 
 Generated sample sources, installed trees and evidence remain under ignored
 `build/first-use/`. See [verification](verification.md) for log names and
-[README build/install instructions](../README.md#build) for the supported commands.
+[build/install instructions](building.md) for the supported commands.
+
+## 0.2.0a release
+
+The user authorized commit/push and publication of 0.2.0a. Windows packaging
+metadata now includes native ACL/synchronization APIs; all three baseline archives
+include the changelog and hook/SMTP examples. The source and extracted binaries
+are verified under the [release plan](release-0.2.0a.md), with exact results in
+[verification](verification.md). Generic-registry assets, archive checksums and
+signed source tags establish the published artifact provenance. Later releases
+require new authorization; 0.1.0a is unchanged.

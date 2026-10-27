@@ -26,9 +26,6 @@ int main(int argc, char **argv) {
 #endif
         }
         return tatr::run_cli(arguments, std::cout, std::cerr);
-    } catch (const tatr::TaskFailure &error) {
-        std::cerr << "tatr: " << error.what() << '\n';
-        return 1;
     } catch (const std::exception &error) {
         std::cerr << "tatr: " << error.what() << '\n';
         return 2;

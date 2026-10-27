@@ -1,6 +1,326 @@
 # Verification results
 
-## Alpha packaging (current)
+## Release 0.2.0a (current)
+
+The user authorized commit/push and GitLab publication of 0.2.0a on 2026-10-27.
+See [the release plan](release-0.2.0a.md) and [release notes](releases/0.2.0a.md).
+The numeric CMake version is 0.2.0; CLI/tag/package version is exactly 0.2.0a.
+The older 0.1.0a release and its assets are retained unchanged.
+
+Release preparation passed:
+
+| Check | Result |
+| --- | --- |
+| Windows x64/MSVC 19.51 strict | 442/442 tests. |
+| Debian 12 x64/GCC 12.2 strict | 431/431 tests. |
+| Alpine x64/Clang 19.1.4 | Pinned formatting, enabled static analysis, 431/431 tests. |
+| Alpine Clang ASan/UBSan | 433/433 tests, including propagation probes. |
+| Windows, Alpine 3.21/GCC 14 and Debian 12/GCC 12 archives | Strict MinSizeRel builds, exact thirteen-file archive payload (twelve hashed files plus manifest), spaced-path extraction, per-file hashes, help/version/list/plan/run, dotenv and matching console/file logs. |
+| Packaged completion hooks | Successful and deliberately failed task cases run hooks and preserve original status/context on all three targets. |
+| Packaged SMTP examples | Read-only list/plan succeed without private credentials, curl lookup or mail-server contact on all three targets. |
+| Extracted Windows MinSizeRel SMTP | 13/13 loopback SMTP/TLS cases, curl 8.21.0/Schannel. |
+| Extracted Alpine/GCC MinSizeRel SMTP | 13/13 loopback SMTP/TLS cases, curl 8.14.1/OpenSSL 3.3.7, network restricted to loopback. |
+| Documentation and payload review | Local links/TOML snippets/whitespace checked; public examples only, both MIT notices included. |
+
+Windows regression initially exposed two cleanup tests concurrently writing the
+same intentionally invalid PE fixture (sharing violation). Each now uses its own
+mode-specific filename; the complete concurrent suite passed afterward. This is
+test isolation, not a runtime behavior change. The release's Windows imports are
+ADVAPI32.dll, KERNEL32.dll and api-ms-win-core-synch-l1-2-0.dll; no MSVC redistributable
+or bundled SMTP/TLS library is required. Runtime metadata has been refreshed.
+
+Preflight packages truthfully use source_state=working-tree and the prior committed
+baseline SHA. Final publication packages are rebuilt from the clean signed release
+commit with source_state=committed. Their manifests identify that exact source and
+payload hashes; SHA256SUMS covers all three archives. Final archive integrity and
+source provenance are rechecked before upload, followed by download/hash checks.
+This avoids a circular source-commit/archive-hash record in the repository.
+
+Ignored evidence: build/release-020-*.log records strict/quality/sanitizer/package
+checks; build/release-020-preflight-binaries.json identifies extracted candidates;
+build/release-020-smtp-windows-preflight/ and release-020-smtp-alpine-preflight/
+contain results, versions, messages and matching binary hashes. The final local
+assets/download checks are under build/releases/0.2.0a and
+build/releases/downloaded-0.2.0a. Only synthetic credentials and loopback recipients
+were used; no real email, OS trust-store change, CI activation or runner change.
+
+Debian 12's archive is verified on its own glibc 2.36 baseline with strict regression
+and extracted command/hook checks. Live SMTP/TLS transport coverage is Windows and
+Alpine; it is not a claim of every client/provider on Debian. macOS, other
+architectures, older OS versions and other glibc baselines remain unverified.
+The new packages include the changelog and public hook/SMTP examples; SMTP still
+requires an external compatible curl client. Other alpha limits remain documented
+in the configuration/SMTP guides and release notes.
+
+## Structured SMTP actions
+
+Verified on 2026-10-27 under the separately [approved SMTP increment](smtp-increment.md).
+See [SMTP configuration and limits](smtp.md). Results describe the uncommitted
+source tree, not the published 0.1.0a assets, which remain unchanged.
+
+| Check | Environment | Result |
+| --- | --- | --- |
+| Native strict build/tests | Windows x64, MSVC 19.51.36260.0, CMake 4.3.2 | PASS: 442/442. |
+| GCC strict build/tests | Debian 12 x64, GCC 12.2.0, CMake 3.25.1 | PASS: 431/431. |
+| Format/static analysis/regression | Alpine 3.21 x64, Clang/LLVM 19.1.4 | PASS: pinned formatting, enabled project analysis and 431/431 tests. |
+| ASan/UBSan | Alpine 3.21 x64, Clang 19.1.4 | PASS: 433/433, fail-fast settings and sanitizer propagation checks. |
+| Native SMTP/TLS | Windows system curl 8.21.0, Schannel | PASS: 13/13 loopback scenarios. |
+| Linux SMTP/TLS | Alpine curl 8.14.1, OpenSSL 3.3.7 | PASS: 13/13 loopback scenarios, container network disabled except loopback. |
+| Documentation/examples | Local links, TOML syntax, real list/plan on public example | PASS; no credential files/client/network needed to inspect the example. |
+
+The SMTP suite adds 50 tests per platform, including native rendering/process-input
+checks. It covers schema validation, action exclusivity, header injection, UTF-8
+subject/body encoding, credential precedence and bounds, missing/generated/BOM
+body files, config escaping, action logs and raw-output suppression, private
+permissions/access controls, explicit cleanup failures and preservation of a
+prior client failure. Native pipe tests force multiple writes with a 1 MiB input,
+exercise early exits and failed launches, and verify EOF and exact content.
+
+Windows adds private-input handle exclusion, absent-standard-handle behavior and
+repeated CreateProcess failure cleanup tests. Review found that the earlier test
+helper could confuse a reused child handle with the parent's event; it now only
+attempts the signal and lets the parent inspect its actual event. Old direct
+command, environment/dotenv, CLI, logging and dependency tests remain passing.
+
+Each platform's 13 real SMTP cases are authenticated STARTTLS, authenticated
+implicit TLS, unauthenticated encrypted relay, authentication rejection, recipient
+rejection, required-STARTTLS failure, untrusted-certificate rejection, timeout,
+connection refusal, successful completion-hook email, original deployment failure
+with successful email, ignored notification failure and required notification
+failure. Successful cases decode received MIME and compare UTF-8 subject, body,
+recipient headers and original hook context; they verify TLS/auth and one accepted
+message. Failure cases check the native curl status/stage, so a TLS error cannot
+masquerade as an authentication test. Credentials include quotes/backslashes.
+
+The first Windows TLS fixture correctly failed Schannel revocation checks. The
+fixture was corrected with a local CRL endpoint and certificates advertising that
+endpoint; no certificate/revocation bypass or OS trust-store change was made.
+Private files are tested on real POSIX temporary storage in Linux containers,
+because a Windows bind mount does not necessarily preserve POSIX permissions.
+No real mail provider, recipient delivery or Internet SMTP service was used.
+
+Evidence is ignored under build/: smtp-results.json consolidates results and
+binary hashes; smtp-build.log, smtp-windows-tests.log, smtp-gcc.log,
+smtp-quality.log and smtp-sanitize.log contain checks. smtp-live-windows-final/
+and smtp-live-linux-final/ contain results.json, versions, matching binary hashes,
+action records and accepted MIME fixtures. No authentication marker appears in
+those integration evidence trees. Earlier failed fixture/build attempts are not
+the final results. Integration infrastructure is opt-in under tests/smtp-integration;
+its container image is localhost/tatr-smtp-tests:alpine321. No new production
+SMTP/TLS library is linked; curl is external. Native thread support and Windows
+ACL APIs support private process I/O and temporary files. Current strict Windows
+imports ADVAPI32.dll, KERNEL32.dll and api-ms-win-core-synch-l1-2-0.dll, with the
+static MSVC runtime. Original release dependency observations below remain historical.
+
+macOS and real provider/OAuth compatibility remain unverified. Timeouts apply to
+curl transport, not the whole runner. Acceptance is not inbox delivery; retrying
+a partially accepted send can duplicate mail. Crashes/interruption may leave
+private files; no cancellation/retry/spool system was added. See the guide for
+privacy, cleanup and failure-policy limits. Windows packaging runtime metadata
+still describes the original alpha and must be refreshed before any later release;
+packaging changes/publication were outside this increment. No commit, push, tag,
+release or asset modification was performed. Existing Podman resources were kept.
+
+## Run-completion hooks
+
+Verified on 2026-10-27 against the working tree under the approved
+[completion-hook plan](completion-hooks-increment.md). See the
+[contract](completion-hooks.md) and [runnable example](../examples/completion-hooks.toml).
+These are source-build results; published 0.1.0a archives remain unchanged.
+
+| Check | Environment | Result |
+| --- | --- | --- |
+| Native strict build/tests | Windows x64, MSVC 19.51.36260.0, CMake 4.3.2 | PASS: 389/389. |
+| GCC strict build/tests | Debian 12 x64, GCC 12.2.0, CMake 3.25.1 | PASS: 381/381. |
+| Format/static analysis/regression | Alpine Linux x64, Clang/LLVM 19.1.4 | PASS: format, enabled project static analysis and 381/381 regression tests. |
+| ASan/UBSan | Alpine Linux x64, Clang 19.1.4 | PASS: 383/383, fail-fast sanitizer settings and propagation checks. |
+| Completion example | Native Windows and Debian 12 | PASS: success returns 0; deliberate failure returns 1; both print original context and run the completion hook. |
+| Documentation | Local links and example/proposed TOML syntax | PASS. |
+
+The hook suite adds 48 Windows cases and 49 Linux cases (including POSIX signal
+context). It exercises triggers, requested-target filters, deterministic order,
+shared/grouped tasks, original-result context and precedence, runtime-argument
+isolation, warning/required-hook policies, native task failures, launch/cwd/dotenv
+failures, hook continuation, schema rejection and read-only/pre-execution errors.
+The existing stream-fault test additionally injects failures at hook start/finish
+boundaries and verifies no later hook launches. Existing task, dotenv, process,
+logging and CLI suites remain passing.
+
+Strict checks used build/strict; Linux artifacts are under build/hooks-gcc,
+build/hooks-quality and build/hooks-sanitize. Full logs are
+build/hooks-windows-build.log, build/hooks-windows-tests.log, build/hooks-gcc.log,
+build/hooks-quality.log and build/hooks-sanitize.log. Example evidence is in
+build/hooks-example-windows-success.log, build/hooks-example-windows-failure.log
+and build/hooks-example-linux.log. Build evidence is ignored by Git.
+
+A first test invocation exposed an argument-helper fixture mismatch, corrected
+before the full runs. Static analysis then caught an obsolete main-entry catch
+for the removed TaskFailure type; it was removed and builds/checks repeated.
+Final results above use the corrected sources. No macOS execution, SMTP sending,
+notification delivery guarantees, timeout/cancellation work, performance tests,
+release mutation or publication was performed. Ordinary commands/hooks still
+have inherited child I/O and no runner-enforced timeout. No new production
+library or service is required. Disposable check containers used --rm; existing
+Podman resources were preserved.
+
+## Practical workflows
+
+Verified on 2026-10-27 under the approved practical-workflow plan. All scenarios
+passed with the existing `0.1.0a` runtime; no C++ source or build-rule changes.
+The opt-in [workflow guide](workflow-verification.md) links the runnable fixtures.
+
+| Scenario | Tested environment | Result |
+| --- | --- | --- |
+| Node.js | Debian 12, Node 18.20.4, npm 9.2.0 | PASS: offline `npm ci` with a local dependency, default/custom builds, known artifact contents, stage copy/move. |
+| PHP | Debian 12, PHP 8.2.35, Composer 2.5.5 | PASS: locked local dependency install, strict Composer validation, PHP lint, default/custom application packaging, stage copy/move. |
+| Build archives | Python 3.11, Linux tools container | PASS: actual Node/PHP artifacts archived as ZIP/tar.gz, moved, extracted and compared by relative paths and SHA-256. |
+| Portable file operations | CMake 3.25.1 Linux / 4.3.2 Windows | PASS: copy/rename, ZIP/tar.gz create/move/extract, filename/content checks, paths with spaces and an empty file. |
+| PostgreSQL | Server/client 15.19, Debian 12 image | PASS: custom-format dump, backup archive/move/hash check, restore into a new database, schema/constraints/data/view comparison. |
+| MySQL | Server/client 8.4.11 | PASS: transactional logical dump, archive/move/hash check, import into a new database, schema/constraints/data/view comparison. |
+| MariaDB | Server/dump 11.4.13 | PASS: logical dump with matching MariaDB import client, archive/move/hash check, schema/constraints/data/view comparison. |
+| SQLite | CLI/library 3.40.1 | PASS: both `.backup`/`.restore` and `.dump`/SQL import; archive/move/hash check, schema/data/view comparison and integrity checks on both restores. |
+| SQL Server | 2022 CU27-GDR 16.0.4305.5 Developer, sqlcmd 18.7.0001.1, Ubuntu 22.04 container | PASS: native checksummed backup, archive/move/hash check, `RESTORE VERIFYONLY`, restore with distinct files, schema/constraints/data/view comparison. |
+| Logging and failure propagation | Linux/Windows binaries | PASS: matching console/file action records; child output captured separately; failed npm command and SQL error for each engine return TATR exit 1 and never start the dependent marker task. |
+
+The Linux installed runner is the previously verified Debian build of runtime
+`a4e5156`, SHA-256
+`1572080adec44dd1278810b92253f4c59c56616ff21e3cc176c16cbfa31f536a`.
+Windows checks use the executable extracted from the published Windows archive,
+SHA-256 `7b51e04d0490ea60598a9345259bb87cf59e8fc2412c3eaa4528e655e40d332d`.
+The Debian fixture image ID is
+`64fb64f21f452d62ec45ec3de2f2bd5376861b6d17c196cf25af728aea73f52c`;
+its base is pinned in examples/workflow-verification/Containerfile. These tools
+are test dependencies only. The current host uses PowerShell 7.6.7 for the harness
+and Windows PowerShell 5.1.26100.9711 for database task scripts.
+
+Recorded database image digests (as reported by Podman):
+
+| Image | Digest |
+| --- | --- |
+| postgres:15-bookworm | `sha256:da9ee8a31159116ea979e5018ce5e3fb19d1494f43115bfb5696ed398ed2ff5a` |
+| mysql:8.4 | `sha256:1f8411cc085d2f2f92060fca926746cbf97f87b76c3008e9741ad62e604c4ffa` |
+| mariadb:11.4 | `sha256:33a6653ab666774f48818120045f9367a81cd4c54c027412fe294a7d1274e2dc` |
+| mcr.microsoft.com/mssql/server:2022-latest | `sha256:cf8f0ab2ebe61feec2eed2629061a07d247f791c2a8ddda74a4ac9f06a291718` |
+
+Evidence is retained under build/workflow-verification/: builds-complete/ contains
+the final build/archive/Linux+Windows file checks; databases-final/ contains the
+passing PostgreSQL/MySQL/MariaDB/SQLite checks; mssql-complete/ contains the passing
+SQL Server check after correcting the fixture's CREATE VIEW batch. Earlier
+attempts are retained as diagnostics and are not passing results. The top-level
+results.json consolidates the successful runs. Per-engine directories contain
+versions, image metadata, backups/hashes, comparison output, stdout, console/file
+logs and deliberate-failure evidence. images.txt and guest-resources.txt record
+the broader environment.
+
+All uniquely named fixture containers/anonymous volumes and transient credential
+files were removed; the Podman machine and pre-existing resources were retained.
+A scan found no generated fixture credentials in retained evidence. PowerShell
+scripts parsed successfully and scoped documentation links and git diff whitespace
+were checked. The shell fixture was executed successfully; optional local
+ShellCheck was unavailable. No unrelated compiler/sanitizer matrix was rerun.
+
+Limitations: Linux database servers were driven by the Windows runner via Podman;
+this does not establish native Windows/macOS server coverage. Dependencies were
+small local fixture packages; no particular web framework or public registry was
+tested. Backups used small quiescent databases, not concurrent production loads,
+full-cluster/global-object recovery or point-in-time restore. This PC's Store
+PowerShell alias/package is rejected by the existing native-executable check;
+the examples use native Windows PowerShell explicitly. No runner fix, commit,
+push, tag change or publication is part of this increment.
+
+## Changelog and lean README
+
+Verified on 2026-10-27 against the [approved documentation plan](changelog-readme.md).
+
+- README is 116 lines, with intended use/alternatives, release/platform status,
+  one TOML quickstart, minimal source-build/install commands and links to details.
+  Longer workflow, build/install, file-operation and project-layout guidance was
+  retained in usage.md, building.md, file-workflows.md and the documentation index.
+- CHANGELOG.md follows Keep a Changelog 2.0.0 with an Unreleased section, applicable
+  change groups and an initial 0.1.0a entry dated 2026-10-27. GitLab's release API
+  confirmed the date, source commit and the three actual release assets. The
+  existing alpha identifier is preserved without a new SemVer policy. Local glibc
+  work remains under Unreleased and is not presented as a published download.
+- The README TOML block was extracted verbatim into build/docs-quickstart/tatr.toml.
+  The published Windows 0.1.0a archive's executable and installed Debian/glibc
+  binary both passed list, plan hello and
+  run hello, with the expected stdout and action records. No source file, build
+  rule or runtime behavior was changed by this documentation increment.
+- Local documentation paths/anchors and changelog reference links were checked.
+  GitLab release/comparison endpoints resolved; Keep a Changelog and the moved
+  guide's CMake reference were checked. git diff --check passed. The README's
+  build/install commands retain the previously verified recipe and were not
+  rebuilt solely for this move; no full compiler/sanitizer matrix was rerun.
+
+Evidence remains under build/docs-quickstart/.
+Changelog maintenance is documented in development.md;
+release notes remain the announcement for a particular version. Existing GitLab
+tags/assets were not modified. These documentation changes and the preceding
+glibc recipe remain uncommitted for review.
+
+## glibc Linux compatibility
+
+Verified on 2026-10-27. A clean local clone of committed runtime `a4e5156` built
+with strict MinSizeRel diagnostics and passed **332/332 tests** in the new Debian
+12 x64/glibc environment. No C++ or task-execution change was necessary.
+
+The optional tools/Containerfile.glibc pins the native amd64 base to
+debian@sha256:ec31d744f83f4a73447ba045aaab9409997efe5cc706eca4890c1be36cc1606a.
+Installed versions are GCC/g++ 12.2.0 (Debian 12.2.0-14+deb12u1), CMake 3.25.1-1,
+Ninja 1.11.1-2~deb12u1, binutils 2.40-2, glibc 2.36-9+deb12u14 and
+libstdc++6 12.2.0-14+deb12u1. Base/selected package versions are pinned, but the
+recipe is not a complete APT snapshot or reproducible-build guarantee.
+
+The clean-clone build used the image above with source mounted read-only at /src
+and build/glibc/output mounted at /out:
+
+```sh
+cmake --preset strict -G Ninja -B /out -DCMAKE_BUILD_TYPE=MinSizeRel
+cmake --build /out --parallel 2
+ctest --test-dir /out --output-on-failure --parallel 2
+cmake --install /out --prefix "/out/installed prefix"
+```
+
+- Installed-runner checks from /tmp passed with a spaced config/install path:
+  child cwd, PATH lookup, explicit dotenv/inline precedence, literal runtime
+  arguments, console/file logging, child failure exit 1 and runner failure exit 2.
+  List/plan created no logs; unknown target validation returned 2.
+- The Debian packaging branch produced a local tar.gz with the existing eight-file
+  allowlist, both licenses, manifest, checksums, staged/extracted byte comparisons,
+  and extracted help/version/list/plan/hello smoke checks in a spaced path. The
+  example verified dotenv loading and matching console/file action records while
+  child output remained separate.
+- The packaged executable is byte-identical to the clean-clone executable that
+  passed all tests: SHA-256
+  1572080adec44dd1278810b92253f4c59c56616ff21e3cc176c16cbfa31f536a.
+- Shared dependencies from readelf are libstdc++.so.6, libgcc_s.so.1 and libc.so.6;
+  the interpreter is /lib64/ld-linux-x86-64.so.2. ldd also resolves the C++ runtime's
+  transitive libm.so.6 dependency. Highest requested symbol versions are
+  GLIBC_2.34, GLIBCXX_3.4.29, CXXABI_1.3.9 and GCC_3.0. These describe necessary
+  symbols, not proof that the binary runs on every older runtime exposing them.
+  Actual testing was on glibc 2.36 with Debian's GCC 12 runtime in Podman; other
+  distributions, older userlands/kernels and bare-metal installs were not tested.
+- Windows and Alpine packaging regression runs passed after the shared package
+  guide/manifest changes. No Windows C++ or Alpine runtime code changed; their
+  full previously recorded regression results remain the baseline.
+
+Local candidate:
+build/packages/linux-x86_64-debian12-glibc/tatr-0.1.0a-linux-x86_64-debian12-glibc.tar.gz,
+SHA-256 5c33a1d66f07b9ad59201e2eb1ae5aaa307a1643199775f96770f21637a81562.
+It records source_revision=a4e515600a5470e3e294ff66d8a043ecd94dd623 and
+source_state=working-tree: runtime baseline committed, packaging/docs changes
+uncommitted. Commit/push and publication require authorization. No release, tag
+or existing GitLab asset was modified by this increment.
+
+Evidence under build/glibc/ includes image-build.log, installed-tool-versions.log,
+strict-tests.log, installed-smoke.log, elf-requirements.log, package.log,
+windows-package-regression.log and alpine-package-regression.log. Generated sample
+files and the clean source clone are retained there. See [packaging](packaging.md)
+for commands and [the completed increment](glibc-linux.md) for the approved scope.
+README's platform caveat received only a factual local-candidate update; the
+requested changelog/lean-README work was [completed separately](changelog-readme.md).
+
+## Alpha packaging
 
 Verified on 2026-10-27 for `0.1.0a`. CMake's numeric project version remains 0.1.0;
 the display version and CLI version expectation now include the alpha suffix.

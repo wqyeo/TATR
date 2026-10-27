@@ -50,6 +50,21 @@ int main(int argc, char **argv) {
         out << args[2] << '\n';
         if (!out)
             return 91;
+    } else if (mode == "hook_context" && args.size() == 2) {
+        std::ofstream out(path(args[1]), std::ios::app);
+        for (const auto *key : {"TATR_TARGET", "TATR_OUTCOME", "TATR_STATUS", "TATR_FAILED_TASK",
+                                "TATR_CHILD_EXIT_CODE", "TATR_CHILD_SIGNAL", "TATR_DURATION_MS",
+                                "TATR_HOOK_CUSTOM"}) {
+            const auto *value = std::getenv(key);
+            out << key << '=' << (value ? value : "<missing>") << '\n';
+        }
+        if (!out)
+            return 91;
+    } else if (mode == "stdin_copy" && args.size() == 2) {
+        std::ofstream out(path(args[1]), std::ios::binary);
+        out << std::cin.rdbuf();
+        if (!out)
+            return 91;
     } else if (mode == "copy_file" && args.size() == 3) {
         std::filesystem::copy_file(path(args[1]), path(args[2]),
                                    std::filesystem::copy_options::overwrite_existing);
@@ -131,8 +146,8 @@ int main(int argc, char **argv) {
             reinterpret_cast<HANDLE>(static_cast<std::uintptr_t>(std::stoull(args[1])));
         // Signal the actual parent event if it leaked, avoiding handle-number
         // reuse false positives in the child's independent handle table.
-        if (SetEvent(handle))
-            return 95;
+        // Only the parent can distinguish its event from a reused child handle.
+        (void)SetEvent(handle);
     }
 #endif
     else if (mode == "signal") {
