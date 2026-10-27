@@ -202,6 +202,20 @@ cmake --build --preset dev
 ctest --preset dev
 ```
 
+On Linux, CMake's default generator normally needs Make. If you installed Ninja
+instead, select it on the first configure:
+
+```sh
+cmake --preset dev -G Ninja
+cmake --build --preset dev
+ctest --preset dev
+```
+
+Use the same generator when reusing a build directory. To change it, select a new
+build directory or configure with `--fresh`. The release preset has its own build
+directory, so select Ninja there too if needed: `cmake --preset release -G Ninja`.
+These generator choices do not install the required build tool or compiler.
+
 Run `build/dev/tatr` with a single-configuration generator, or
 `build/dev/Debug/tatr.exe` with Visual Studio. The exact executable suffix and
 configuration directory depend on the platform and generator.
@@ -242,6 +256,26 @@ redistributing it. TOML files, scripts, and programs named by your tasks still n
 to be available. Linux binaries require compatible libc/C++ runtimes; a build for
 one distribution is not automatically a portable Linux bundle.
 
+For a first invocation from the repository root, use the installed executable
+directly; no PATH change is needed:
+
+```sh
+# Linux (macOS is not yet verified)
+./build/stage/bin/tatr --version
+./build/stage/bin/tatr --file examples/tatr.toml run check -- --parallel 2
+```
+
+```powershell
+# Windows PowerShell
+.\build\stage\bin\tatr.exe --version
+.\build\stage\bin\tatr.exe --file examples/tatr.toml run check -- --parallel 2
+```
+
+The example launches CMake/CTest by name, so those tools must be on PATH. If using
+the repository's mise setup, prefix the invocation with `mise exec --`. For a
+fresh Linux dev build with Ninja, set `CMAKE_GENERATOR=Ninja` for the invocation,
+or configure `dev` with `-G Ninja` first. A preset's cached generator is reused.
+
 Use installation or artifact copying for deployment. CMake build trees contain
 cached source/build paths and should not be moved as a substitute for installation.
 
@@ -266,6 +300,7 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - `src/config.*`: configuration model and validation.
 - `src/environment.hpp`: portable override names and environment map type.
 - `src/dotenv.*`: bounded dotenv file loading and parsing.
+- `src/logging.*`: synchronous action records and console/file output.
 - `src/planner.*`: dependency validation and deterministic planning.
 - `src/runner.*`: sequential task execution and failure reporting.
 - `src/process.*`: native Windows/POSIX process launching and waiting.
@@ -285,11 +320,14 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - [Environment increment](docs/task-environment.md): completed approved scope.
 - [Runtime-argument increment](docs/runtime-arguments.md): completed approved scope.
 - [Dotenv increment](docs/dotenv-files.md): completed approved scope.
+- [Logging increment](docs/action-logging.md): completed approved scope.
+- [Release checklist](docs/release-checklist.md): first-use evidence and remaining decisions.
 - [Development checks](docs/development.md): local gates and proposed CI workflow.
 - [Next increment](docs/next-increment.md): proposal awaiting review.
 
-Each increment is planned and reviewed before implementation. The next focus is
-first-use testing and release readiness. Performance benchmarking is deferred;
+Each increment is planned and reviewed before implementation. First-use workflows
+have been exercised on Windows and Alpine Linux; the checklist records remaining
+release decisions. Performance benchmarking is deferred;
 parallelism and caching remain future work.
 
 ## License

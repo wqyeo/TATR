@@ -1,6 +1,6 @@
 # Explicit dotenv-file increment
 
-Status: approved and implemented; changes remain uncommitted for review.
+Status: approved, implemented and verified; committed alongside logging in `01566dd`.
 
 The user approved the six steps below. See [the configuration contract](configuration.md)
 and [verification results](verification.md) for final behavior and evidence.

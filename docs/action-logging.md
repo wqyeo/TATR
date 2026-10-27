@@ -1,10 +1,11 @@
 # Action logging increment
 
-Status: implemented and verified on 2026-10-27; changes remain uncommitted. See [verification results](verification.md).
+Status: implemented and verified on 2026-10-27; committed in `01566dd`.
+See [verification results](verification.md).
 
-The [first-use/release-readiness proposal](first-use-release-readiness.md)
-remains pending. Logging took priority at the user's request. Earlier dotenv work
-remains uncommitted alongside this increment.
+Logging took priority at the user's request; the approved
+[first-use/release-readiness increment](first-use-release-readiness.md) followed it.
+Earlier dotenv work was committed alongside this increment.
 
 ## Convention
 

@@ -1,6 +1,59 @@
 # Verification results
 
-## Action logging increment (current)
+## First-use and release readiness (current)
+
+Verified on 2026-10-27 against runtime commit `01566dd`, using fresh local clones
+under build/first-use/source and build/first-use/linux-source. Both clones remained
+clean after their workflows (generated files are ignored beneath build/).
+See the [release checklist](release-checklist.md) for readiness and open decisions.
+
+- Windows x64 MSVC 19.51.36260.0 / CMake 4.3.2 / Visual Studio 18 2026: clean
+  MinSizeRel build and chosen-prefix installation passed. The installed binary
+  ran from another cwd and orchestrated the checked-in dev configure/build/test
+  example with `-- --parallel 2`; **341 tests passed**. It ran its own installed
+  copy, not the executable being rebuilt in the clone.
+- Alpine Linux 3.21 x64 / GCC 14.2.0 / CMake 3.31.1 / Ninja (samurai 1.2): clean
+  release build and installation passed. The installed binary orchestrated the
+  same dev workflow from /tmp with **332 tests passed**. The source mount was
+  read-only; only build outputs were writable.
+- An installed Windows TATR orchestrated the opt-in container quality workflow,
+  including strict Clang 19.1.4 build, format verification, static analysis and
+  **332 tests passed**. No worker/service/remote pipeline was installed or enabled.
+- Standalone C++23 sample projects on both platforms verified configure/build to
+  build/output, installation to build/stage, and running the installed sample.
+  Ordinary and spaced paths passed. The sample printed the expected inline-env
+  override plus literal arguments with spaces/leading dashes, after explicit
+  .env.example loading. Action log files were created relative to each config.
+- The public file-operation example ran on both platforms with ordinary/spaced
+  project paths. Hash/content comparisons matched LICENSE for copied/moved files;
+  the original moved file was absent. All sample data remained under build/.
+- Read-only commands and unknown targets created no log directory in fresh smoke
+  fixtures. File-only child failure and missing-dotenv failure returned 1/2 and
+  recorded the corresponding outcomes without console action records.
+- Both installed MIT notices matched their sources. Runtime inspection confirmed
+  Windows imports only KERNEL32.dll; Alpine needs libstdc++.so.6, libgcc_s.so.1 and
+  libc.musl-x86_64.so.1. These are tested artifacts, not universal runtime claims.
+
+The only setup failure was the Alpine image's missing Make for CMake's default
+Unix Makefiles generator. Explicit Ninja selection succeeded after `--fresh`
+cleared the failed generator cache. README now includes explicit dev/release Ninja
+commands, direct installed-binary invocations, and PATH/mise guidance for examples.
+No runtime changes or new automated tests were needed for these documentation fixes.
+
+Evidence under build/first-use/ includes windows-clean-build.log,
+windows-dogfood.log, installed-quality.log, linux-default-generator.log,
+linux-clean-dogfood.log, windows-sample.log, windows-sample-spaces.log,
+linux-samples-files.log, windows-files.log, windows-error-smoke.log,
+linux-error-smoke.log, windows-dependencies.log and linux-dependencies.log.
+Generated standalone sample sources and installed prefixes are retained there.
+The earlier logging ASan/UBSan result remains the runtime sanitizer evidence.
+
+macOS, glibc Linux, MinGW, older system/compiler versions and other architectures
+remain unverified. No performance gates, runtime features, release publication,
+remote CI or runner provisioning were introduced. Local archive packaging and
+extraction verification are proposed separately for approval.
+
+## Action logging increment
 
 Verified on 2026-10-27 against the [approved logging plan](action-logging.md).
 
@@ -51,7 +104,7 @@ file injection and genuine OS close-time failures remain unverified. Stream seam
 exercise final flush failures; the production file owner checks close state too.
 No locking, rotation/retention, fsync durability, child-output capture or changed
 signal/cancellation behavior is claimed. External signals can still terminate the
-runner. Changes, including the earlier dotenv increment, remain uncommitted.
+runner. Logging and the earlier dotenv implementation are committed in `01566dd`.
 
 ## Explicit dotenv-file increment
 
@@ -110,7 +163,7 @@ macOS, MinGW, other architectures/libcs, permission-denial/locked-file injection
 and concurrent-file-edit races remain unverified. File reads are not atomic
 snapshots; detected growth/truncation is rejected but edits are not serialized.
 Existing cancellation/descendant-cleanup and total-memory limits remain unchanged.
-Changes remain uncommitted for review.
+The dotenv implementation is committed alongside logging in `01566dd`.
 
 ## MIT licensing and usage documentation
 

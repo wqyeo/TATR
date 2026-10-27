@@ -72,8 +72,10 @@ exec = ["cmake", "--build", "--preset", "dev"]
 9. Add console action logging and optional TOML-configured log files
    ([implemented](action-logging.md)).
 10. Dogfood the existing workflows and establish first-use/release readiness
-    ([pending proposal](next-increment.md)). Performance benchmarking
-    remains deferred.
+    ([completed](first-use-release-readiness.md); see the
+    [release checklist](release-checklist.md)).
+11. Prepare local release archives and verify extracted distributions
+    ([pending proposal](next-increment.md)). Performance benchmarking remains deferred.
 
 Each increment needs review before implementation. Tests should cover meaningful
 behavior as it is introduced. Parallel execution, caching, remote execution,

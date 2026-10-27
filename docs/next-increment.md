@@ -1,35 +1,39 @@
-# Next increment proposal: first-use and release readiness
+# Next increment proposal: local release packaging
 
-Status: awaiting review. Do not implement until approved. The action logging
-increment is [implemented and verified](action-logging.md), alongside the earlier
-dotenv changes; these changes remain uncommitted. Commit/push needs authorization.
-The original [first-use proposal](first-use-release-readiness.md) is preserved.
+Status: awaiting review. Do not implement until approved. The
+[first-use increment](first-use-release-readiness.md) is complete; its
+[release checklist](release-checklist.md) identifies packaging and support scope
+as the next practical release decisions. No publication is authorized.
 
 ## Outcome
 
-Establish whether the existing runner is straightforward to build, install and use
-in real workflows before adding features. Performance benchmarking remains deferred.
+Prepare reviewable local archives from the tested installed distributions, verify
+them after extraction, and state their runtime requirements accurately.
 
 ## Full proposed plan
 
-1. Walk through a clean-checkout build, chosen-prefix installation and first task
-   invocation on Windows/Linux using documented prerequisites. Record undocumented
-   steps; keep macOS unverified without native access.
-2. Use an installed TATR for this repository's configure/build/test workflow and
-   opt-in developer checks, avoiding rebuilding the executable in use. Check PATH,
-   config selection, cwd/env/env_file, runtime arguments, console/file logs and errors.
-3. Exercise a small sample project's build/install workflow and the file-operation
-   example with ordinary and spaced paths. Keep generated data under build/ and
-   verify output/install locations and copied/moved file contents.
-4. Prioritize concrete usability issues and correct documentation within this scope.
-   Propose runtime behavior changes separately for review; add no speculative features.
-5. Write a first-release checklist covering tested toolchains/platforms, compatibility
-   gaps, binary/runtime dependencies, package contents, both MIT notices and copyable
-   getting-started instructions. Distinguish tested versions from minimum support.
-6. Present evidence, remaining blockers and the next practical fix for review.
-   Commit/push only when authorized; do not publish a release or activate CI.
+1. Document the proposed package matrix: Windows x64/MSVC and Alpine Linux x64/musl
+   using the tested toolchains. Label macOS, glibc Linux and other architectures
+   unverified; make no broader compatibility or minimum-version guarantees.
+2. Add an opt-in local packaging workflow using existing CMake/tools to build and
+   install into isolated staging directories under build/. Include the executable,
+   both MIT notices, a short package usage guide and an example TOML file. Add no
+   runtime dependency or task-runner behavior change.
+3. Produce clearly named Windows ZIP and Alpine Linux tar.gz archives, a manifest
+   with version/platform/toolchain/runtime requirements, and SHA-256 checksums.
+   Record contents and digests without claiming bit-for-bit reproducible builds.
+4. Extract each archive into a fresh spaced path and verify its manifest, executable
+   and license contents against staging. Reject missing or unexpected staged files;
+   do not package build caches, private env files or logs.
+5. Run the extracted executable's help/version/list/plan and a minimal task from
+   another cwd on its native tested platform. Verify console/file logging and
+   explicit dotenv loading. CMake may support smoke checks but is not a general
+   runtime requirement. Record dependency and platform limitations.
+6. Update README/checklist with local packaging commands and evidence; present
+   archives and remaining release decisions for review. Commit/push only when
+   authorized. Do not tag, upload/publish artifacts or activate remote CI/runners.
 
 ## Scope boundary
 
-No performance framework/gates, new execution features, production dependencies,
-remote CI activation, release publication or unverified platform/device claims.
+No release publication, registry/image upload, remote CI/runner changes,
+cross-compilation, universal Linux claims, performance gates or new execution features.

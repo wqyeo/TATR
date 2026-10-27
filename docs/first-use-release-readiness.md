@@ -1,18 +1,19 @@
-# Next increment proposal: first-use and release readiness
+# First-use and release-readiness increment
 
-Status: awaiting review. Do not implement until approved.
+Status: approved, completed and verified on 2026-10-27.
+See [verification results](verification.md) and [release checklist](release-checklist.md).
 
 The basic runner includes task directories, environment overrides, runtime
-arguments, and [explicit dotenv files](dotenv-files.md). The user deferred
+arguments, [explicit dotenv files](dotenv-files.md), and [action logging](action-logging.md). The user deferred
 performance benchmarking before the first release. MIT licensing is decided;
-this previously deferred first-use increment awaits separate approval.
+this previously deferred first-use increment subsequently received approval.
 
 ## Outcome
 
 Establish whether the existing runner is useful and straightforward to build,
 install, and use in real project workflows before adding more features.
 
-## Proposed steps
+## Approved steps
 
 1. Walk through a clean-checkout build, chosen-prefix installation, and first
    task invocation on Windows/Linux, using only documented prerequisites. Record
