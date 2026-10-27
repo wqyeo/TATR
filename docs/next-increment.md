@@ -1,39 +1,29 @@
-# Next increment proposal: local release packaging
+# Next increment proposal: glibc Linux compatibility
 
-Status: awaiting review. Do not implement until approved. The
-[first-use increment](first-use-release-readiness.md) is complete; its
-[release checklist](release-checklist.md) identifies packaging and support scope
-as the next practical release decisions. No publication is authorized.
-
-## Outcome
-
-Prepare reviewable local archives from the tested installed distributions, verify
-them after extraction, and state their runtime requirements accurately.
+Status: awaiting review. Do not implement until approved. The 0.1.0a alpha provides
+Windows x64/MSVC and Alpine Linux 3.21 x64/musl packages. A separate glibc build is
+needed before offering a package for that runtime family. See [packaging](packaging.md).
 
 ## Full proposed plan
 
-1. Document the proposed package matrix: Windows x64/MSVC and Alpine Linux x64/musl
-   using the tested toolchains. Label macOS, glibc Linux and other architectures
-   unverified; make no broader compatibility or minimum-version guarantees.
-2. Add an opt-in local packaging workflow using existing CMake/tools to build and
-   install into isolated staging directories under build/. Include the executable,
-   both MIT notices, a short package usage guide and an example TOML file. Add no
-   runtime dependency or task-runner behavior change.
-3. Produce clearly named Windows ZIP and Alpine Linux tar.gz archives, a manifest
-   with version/platform/toolchain/runtime requirements, and SHA-256 checksums.
-   Record contents and digests without claiming bit-for-bit reproducible builds.
-4. Extract each archive into a fresh spaced path and verify its manifest, executable
-   and license contents against staging. Reject missing or unexpected staged files;
-   do not package build caches, private env files or logs.
-5. Run the extracted executable's help/version/list/plan and a minimal task from
-   another cwd on its native tested platform. Verify console/file logging and
-   explicit dotenv loading. CMake may support smoke checks but is not a general
-   runtime requirement. Record dependency and platform limitations.
-6. Update README/checklist with local packaging commands and evidence; present
-   archives and remaining release decisions for review. Commit/push only when
-   authorized. Do not tag, upload/publish artifacts or activate remote CI/runners.
+1. Select and document one pinned glibc Linux x64 build environment with a C++23
+   compiler. Record distribution, libc, compiler, CMake and build-tool versions;
+   state the proposed artifact's baseline without claiming universal Linux support.
+2. Build a clean committed checkout and run the complete strict regression suite
+   in that environment. Keep generated data under build/ and add no runtime features.
+3. Exercise the native process backend through installed TATR: cwd/PATH lookup,
+   dotenv/inline precedence, runtime arguments, console/file logs and failure exits.
+   Investigate compatibility failures; bring material runtime fixes back for review.
+4. Inspect the executable's shared dependencies and required glibc/C++ symbol
+   versions. Record the actual runtime requirements and untested older systems.
+5. Extend the opt-in packaging recipe for this tested baseline, reusing its manifest,
+   allowlist, licenses, extraction/hash checks and smoke tests. Produce a local
+   clearly labelled archive without modifying the existing 0.1.0a release assets.
+6. Update the compatibility matrix, build/package instructions and verification
+   evidence, then present the result for review. Commit/push and publication need
+   authorization; do not publish another release or change CI/runners by default.
 
 ## Scope boundary
 
-No release publication, registry/image upload, remote CI/runner changes,
-cross-compilation, universal Linux claims, performance gates or new execution features.
+No cross-compilation, universal/static-Linux claims, new execution features,
+performance gates, macOS claims without a native host, or automatic publication.

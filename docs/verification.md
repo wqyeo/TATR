@@ -1,6 +1,38 @@
 # Verification results
 
-## First-use and release readiness (current)
+## Alpha packaging (current)
+
+Verified on 2026-10-27 for `0.1.0a`. CMake's numeric project version remains 0.1.0;
+the display version and CLI version expectation now include the alpha suffix.
+
+- Native Windows/MSVC strict build and **341 tests passed**.
+- Alpine Linux 3.21 x64/GCC 14.2 strict MinSizeRel build and **332 tests passed**.
+- Windows ZIP and Alpine/musl tar.gz packaging builds use strict MinSizeRel and
+  isolated staging. Each includes exactly the executable, usage guide, three public
+  example files, both MIT notices and MANIFEST.json.
+- Both native recipes reject unexpected/missing staged/extracted files and compare
+  every extracted file, including the manifest, against staging by SHA-256.
+- Extracted help/version/list/plan and sample execution passed from outside each
+  package, with a spaced extraction path. Version was `tatr 0.1.0a`; the CMake
+  sample verified explicit dotenv loading, child output remaining outside action
+  logs, and identical console/file records. Read-only commands created no logs.
+- The manifest records the full source revision supplied for the final clean build,
+  toolchain/generator/CMake versions, platform/runtime requirements and payload file
+  hashes. Archive sidecars record SHA-256; final publication combines them into
+  SHA256SUMS. There is no bit-for-bit reproducible-build claim.
+
+Scripts/recipes and publication steps are in [packaging](packaging.md); release
+notes are [0.1.0a](releases/0.1.0a.md). Local logs: build/package-windows.log,
+build/package-linux.log, build/package-windows-strict.log and
+build/package-linux-tests.log. Final clean-revision packaging logs use the suffix
+`-final.log`; generated archives/staging/extractions remain under build/packages/.
+No task execution code, new production dependency or remote CI setting changed.
+Earlier Clang static-analysis/ASan/UBSan results remain baseline evidence; those
+checks were not rerun solely for the version-string and packaging additions.
+macOS, glibc Linux, MinGW, other architectures and older runtime versions remain
+unverified. The Linux download is explicitly Alpine 3.21 x64/musl.
+
+## First-use and release readiness
 
 Verified on 2026-10-27 against runtime commit `01566dd`, using fresh local clones
 under build/first-use/source and build/first-use/linux-source. Both clones remained

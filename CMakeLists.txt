@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 project(tatr VERSION 0.1.0 LANGUAGES C CXX)
+set(TATR_VERSION "${PROJECT_VERSION}a")
+configure_file(cmake/build-info.cmake.in tatr-build-info.cmake @ONLY)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build configuration" FORCE)
@@ -20,7 +22,7 @@ target_include_directories(tatr_core PUBLIC src)
 target_link_libraries(tatr_core PRIVATE tomlc17)
 target_compile_features(tatr_core PUBLIC cxx_std_23)
 set_target_properties(tatr_core PROPERTIES CXX_EXTENSIONS OFF)
-target_compile_definitions(tatr_core PRIVATE TATR_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(tatr_core PRIVATE TATR_VERSION="${TATR_VERSION}")
 
 if(NOT WIN32)
     include(CheckSymbolExists)

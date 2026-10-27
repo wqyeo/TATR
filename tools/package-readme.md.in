@@ -1,0 +1,42 @@
+# TATR @package_version@ alpha
+
+Platform: @platform@. Built with @package_compiler@.
+Runtime requirements: @runtime@.
+Source revision: @SOURCE_REVISION@.
+
+This is an experimental alpha. The Linux archive targets Alpine 3.21 x64/musl;
+it is not a universal Linux/glibc binary. macOS and other architectures are unverified.
+
+Extract the entire archive. Run `bin/tatr --version` (Windows:
+`.\bin\tatr.exe --version`), or add bin to PATH. Preserve both MIT notices under
+share/tatr/licenses when redistributing. TATR itself needs no compiler or CMake;
+the included demonstration deliberately uses CMake 3.25+ as its external program.
+
+From the extracted package directory, with CMake on PATH:
+
+```sh
+./bin/tatr --file examples/tatr.toml list
+./bin/tatr --file examples/tatr.toml plan hello
+./bin/tatr --file examples/tatr.toml run hello
+```
+
+On Windows PowerShell use `.\bin\tatr.exe` for the executable above.
+The example explicitly loads a public .env.example file, checks its value in a
+CMake script, and writes TATR action records to stderr and logs/example-{date}.log.
+Child output stays on the console. No private .env file is included or discovered.
+The package directory must be writable for this example's log directory; adjust
+logging.file.directory or remove its table when using a read-only installation.
+
+TATR runs argument arrays directly, in dependency order, stopping at the first
+failure. Task cwd/env_file and log directory paths resolve from the TOML directory.
+Use `--file` to select a config; there is no parent-directory discovery.
+Exit codes: 0 success, 1 failed child, 2 CLI/configuration/runner/logging error.
+There is no implicit shell, timeout, process-tree cleanup, parallel execution,
+child-output capture or log rotation/retention. Log records omit argument arrays
+and environment values, but task names/diagnostic paths can expose project metadata.
+
+MANIFEST.json records the build and SHA-256 hashes of the seven payload files.
+The release's SHA256SUMS file records the archive hashes.
+
+Source and full documentation:
+https://gitlab.com/wqyeo/thats-another-task-runner/-/tree/@package_version@

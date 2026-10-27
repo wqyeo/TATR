@@ -1,8 +1,9 @@
 # First-release checklist
 
 First-use evidence recorded on 2026-10-27 against runtime commit `01566dd`.
-The application remains pre-release, built from source. No release/tag, downloadable
-package, remote pipeline, or runner was published/configured by this increment.
+The first-use increment prepared a source-build baseline. The user subsequently
+authorized `0.1.0a` alpha packages for the tested Windows and Alpine environments;
+see [packaging](packaging.md). Remote CI/runners remain outside this work.
 
 ## Verified locally
 
@@ -67,27 +68,27 @@ establishes compatibility with older systems or another architecture.
    The README's configure/build/install example was exercised without runtime
    changes. Do not move a CMake build tree to deploy it; install first.
 
-No task-runner behavior defect was identified in these workflows. The next
-practical increment proposed for review is local release packaging and extraction
-checks. Native macOS compatibility requires a macOS host and remains separate.
+No task-runner behavior defect was identified in these workflows. Local release
+packaging and extraction checks were subsequently implemented for the alpha.
+Native macOS compatibility requires a macOS host and remains separate.
 
 ## Before publishing any first release
 
-- [ ] Approve a release version/channel and platform/toolchain support statement.
-  Version output is currently 0.1.0; that does not establish a published release.
-- [ ] Produce clearly named local platform archives with both MIT notices,
+- [x] Approve `0.1.0a` as an experimental alpha for Windows x64/MSVC and Alpine
+  Linux 3.21 x64/musl. Executable version output matches the alpha identifier.
+- [x] Produce clearly named local platform archives with both MIT notices,
   installation/usage instructions and checksums; verify after extraction.
-- [ ] Decide whether the first Linux artifact intentionally targets Alpine/musl
-  or needs additional glibc builds/tests. Do not call an Alpine binary universal.
-- [ ] Verify native macOS before distributing/claiming a supported macOS artifact.
-  Alternatively, scope the first release explicitly to the tested Windows/Linux
-  environments and retain macOS as an unverified target.
-- [ ] Record unsupported/untested architectures, MinGW and older runtime versions.
-- [ ] Review known execution limits: no timeout/cancellation/process-tree cleanup,
+- [x] Label the first Linux artifact Alpine/musl explicitly. glibc Linux remains
+  unverified and needs its own build/test/packaging increment.
+- [x] Scope this alpha explicitly to the tested Windows/Alpine environments and
+  retain macOS as an unverified target. Verify native macOS before distributing
+  or claiming a supported macOS artifact in a future release.
+- [x] Record unsupported/untested architectures, MinGW and older runtime versions.
+- [x] Review known execution limits: no timeout/cancellation/process-tree cleanup,
   parallel execution, rotation/retention or child-output capture. Existing POSIX
   descriptor inheritance and concurrent-file limitations remain documented.
-- [ ] Obtain explicit authorization before tagging/publishing artifacts or changing
-  remote CI/runner settings. Local readiness checks do not authorize those actions.
+- [x] Obtain explicit authorization to tag/publish `0.1.0a` and its verified assets.
+  Future publication and remote CI/runner settings require separate authorization.
 
 Generated sample sources, installed trees and evidence remain under ignored
 `build/first-use/`. See [verification](verification.md) for log names and

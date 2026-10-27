@@ -12,9 +12,12 @@ suited to small systems.
 TATR validates a TOML task file, lists tasks, plans dependency order, and executes
 commands sequentially, stopping on the first failure.
 
-This is pre-release software, currently built from source. Windows and Linux have
-been verified; macOS is a target but has not been verified. There is no published
-release package yet. TATR is [MIT licensed](LICENSE).
+This is experimental alpha software. [Download 0.1.0a from GitLab](https://gitlab.com/wqyeo/thats-another-task-runner/-/releases/0.1.0a)
+for Windows x64/MSVC or Alpine Linux 3.21 x64/musl. Each archive includes usage
+instructions, an example, a build/file-hash manifest and both MIT notices; SHA256SUMS
+is provided alongside the archives. The Alpine artifact needs compatible musl/C++
+runtimes. macOS, glibc Linux and other architectures remain unverified. TATR is
+[MIT licensed](LICENSE). Source build instructions follow below.
 
 ## Use
 
@@ -289,6 +292,8 @@ Podman image; see [the local workflow and CI proposal](docs/development.md).
 The TOML parser is vendored at a pinned revision; building a checkout requires no
 dependency downloads. Installation includes the executable and both MIT notices.
 
+To build and verify the local release archives, see [packaging instructions](docs/packaging.md).
+
 Windows debug/release and Linux x64 release builds have been verified. macOS is
 unverified. See [verification and size measurements](docs/verification.md) for
 toolchains, commands, runtime dependencies, and limits of those measurements.
@@ -322,6 +327,7 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - [Dotenv increment](docs/dotenv-files.md): completed approved scope.
 - [Logging increment](docs/action-logging.md): completed approved scope.
 - [Release checklist](docs/release-checklist.md): first-use evidence and remaining decisions.
+- [Packaging](docs/packaging.md): local archive builds, verification and publication procedure.
 - [Development checks](docs/development.md): local gates and proposed CI workflow.
 - [Next increment](docs/next-increment.md): proposal awaiting review.
 

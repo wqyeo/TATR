@@ -1,0 +1,11 @@
+version = 1
+
+[logging.file]
+directory = "../logs"
+filename = "example-{date}.log"
+
+[tasks.hello]
+description = "Check the public dotenv example (requires CMake on PATH)"
+exec = ["cmake", "-P", "hello.cmake"]
+cwd = "."
+env_file = ".env.example"

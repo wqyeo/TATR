@@ -75,6 +75,8 @@ exec = ["cmake", "--build", "--preset", "dev"]
     ([completed](first-use-release-readiness.md); see the
     [release checklist](release-checklist.md)).
 11. Prepare local release archives and verify extracted distributions
+    ([completed; 0.1.0a publication authorized](release-packaging-increment.md)).
+12. Verify a glibc Linux x64 baseline and prepare a local compatible archive
     ([pending proposal](next-increment.md)). Performance benchmarking remains deferred.
 
 Each increment needs review before implementation. Tests should cover meaningful

@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.25)
+if(NOT "$ENV{TATR_SAMPLE_VALUE}" STREQUAL "from-dotenv")
+    message(FATAL_ERROR "The package sample dotenv value was not loaded")
+endif()
+message(STATUS "TATR package example: dotenv loaded successfully")

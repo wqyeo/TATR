@@ -56,7 +56,7 @@ foreach(case IN LISTS cases)
         "-DTATR=$<TARGET_FILE:tatr>"
         "-DCASE=${case}"
         "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cases/${case}"
-        "-DVERSION=${PROJECT_VERSION}"
+        "-DVERSION=${TATR_VERSION}"
         -P ${CMAKE_CURRENT_SOURCE_DIR}/cli.cmake)
 endforeach()
 
