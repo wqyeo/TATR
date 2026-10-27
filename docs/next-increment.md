@@ -1,40 +1,35 @@
 # Next increment proposal: first-use and release readiness
 
-Status: awaiting review. Do not implement until approved.
-
-The basic runner includes task directories, environment overrides, and runtime
-arguments. The user deferred performance benchmarking before the first release.
-MIT licensing is now decided. This first-use increment awaits separate approval.
+Status: awaiting review. Do not implement until approved. The action logging
+increment is [implemented and verified](action-logging.md), alongside the earlier
+dotenv changes; these changes remain uncommitted. Commit/push needs authorization.
+The original [first-use proposal](first-use-release-readiness.md) is preserved.
 
 ## Outcome
 
-Establish whether the existing runner is useful and straightforward to build,
-install, and use in real project workflows before adding more features.
+Establish whether the existing runner is straightforward to build, install and use
+in real workflows before adding features. Performance benchmarking remains deferred.
 
-## Proposed steps
+## Full proposed plan
 
-1. Walk through a clean-checkout build, chosen-prefix installation, and first
-   task invocation on Windows/Linux, using only documented prerequisites. Record
-   every undocumented step and keep macOS explicitly unverified without native access.
-2. Use an installed TATR copy for this repository's configure/build/test workflow
-   and opt-in developer checks, avoiding rebuilding the executable currently in use.
-   Record friction around PATH, config selection, cwd/env, arguments, and errors.
+1. Walk through a clean-checkout build, chosen-prefix installation and first task
+   invocation on Windows/Linux using documented prerequisites. Record undocumented
+   steps; keep macOS unverified without native access.
+2. Use an installed TATR for this repository's configure/build/test workflow and
+   opt-in developer checks, avoiding rebuilding the executable in use. Check PATH,
+   config selection, cwd/env/env_file, runtime arguments, console/file logs and errors.
 3. Exercise a small sample project's build/install workflow and the file-operation
-   example with ordinary and spaced paths. Keep generated data beneath build/;
-   verify chosen output/install directories and copied/moved file contents.
-4. Record and prioritize concrete usability issues. Make documentation corrections
-   within this scope; propose runtime behavior changes separately for review.
-   Do not add features merely to complete a checklist.
-5. Write a first-release checklist covering tested toolchains/platforms, unresolved
-   compatibility gaps, binary/runtime dependencies, package contents, both MIT
-   notices, and copyable getting-started instructions. Distinguish tested versions
-   from guaranteed minimum support; do not claim unverified macOS support.
-6. Present the evidence, remaining blockers, and the next practical fix for review.
-   Commit/push only when authorized; do not publish a release or activate CI as
-   part of this increment.
+   example with ordinary and spaced paths. Keep generated data under build/ and
+   verify output/install locations and copied/moved file contents.
+4. Prioritize concrete usability issues and correct documentation within this scope.
+   Propose runtime behavior changes separately for review; add no speculative features.
+5. Write a first-release checklist covering tested toolchains/platforms, compatibility
+   gaps, binary/runtime dependencies, package contents, both MIT notices and copyable
+   getting-started instructions. Distinguish tested versions from minimum support.
+6. Present evidence, remaining blockers and the next practical fix for review.
+   Commit/push only when authorized; do not publish a release or activate CI.
 
 ## Scope boundary
 
-No performance benchmark framework, new execution features, production dependencies,
-automatic performance gates, remote CI activation, release publication, or claims
-of native-platform/tiny-device validation without evidence.
+No performance framework/gates, new execution features, production dependencies,
+remote CI activation, release publication or unverified platform/device claims.

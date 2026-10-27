@@ -1,5 +1,117 @@
 # Verification results
 
+## Action logging increment (current)
+
+Verified on 2026-10-27 against the [approved logging plan](action-logging.md).
+
+- Windows x64 MSVC 19.51 / CMake 4.3.2: strict Debug build and **341 tests passed**.
+- Linux x64 Alpine 3.21 / Clang 19.1.4 / CMake 3.31.1: strict build, pinned
+  clang-format and clang-tidy checks, and **332 tests passed**.
+- Linux Clang ASan/UBSan: **334 tests passed**, including the two deliberate
+  sanitizer-propagation checks; application, parser and helpers instrumented.
+- Linux GCC 14.2.0: strict MinSizeRel build and **332 tests passed**.
+- The 46 additional checks per platform cover default console records, file-only
+  output, shared severity thresholds/off, child/native failure outcomes, dotenv
+  errors, grouping/shared prerequisites, sensitive input exclusion, escaped task
+  names, UTF-8/invalid bytes/controls, portable basenames, UTC token snapshots,
+  append behavior, config-relative/absolute/spaced/Unicode paths and cwd independence.
+- Read-only/off/invalid invocations are checked not to create log directories.
+  Deterministic open failures use a regular file as a parent. Injected console/file
+  streams verify failed writes and final flushes; runner injection verifies failed
+  start records prevent launch and later failures prevent subsequent children.
+  Linux also exercises a real file sink through a symlink to `/dev/full`, checking
+  exit 2, direct stderr fallback with console=false, and no child side effects.
+- Child stdout/stderr remain inherited and absent from action files. Windows
+  unsigned 32-bit exit statuses and POSIX signal fields are verified. Help/version
+  now check output writes and flushes, including failing injected output streams.
+- Windows release build/install passed. The installed binary ran console+file and
+  file-only examples from a config path with spaces and Unicode; console/file
+  records matched, child stdout stayed separate, and both MIT notices matched.
+  Linux GCC install/run also verified console/file equality from another cwd and
+  both license files. Generated fixtures and records stay under build/.
+
+The synchronous logger owns its file by scope, is noncopyable/nonmovable, takes an
+explicit console reference and clock seam, and checks writes/flushes and explicit
+close state. Runner errors preserve exit 0/1/2; log sink failures escape to the
+top-level stderr fallback without recursive records. No production dependency,
+worker thread, global logger, output capture, benchmark or CI activation was added.
+Earlier process/config regression cases explicitly use level=off; the dedicated
+logging suite verifies the new default and its stream separation.
+
+Release binaries are 420,352 bytes on Windows (static MSVC runtime) and 157,832
+bytes on Alpine GCC (shared runtime, unstripped). These are artifact observations,
+not performance gates or tiny-device validation. Reproduction uses the existing
+strict, quality, sanitizer and GCC container workflows. Logs are
+build/logging-windows-build.log, logging-windows-tests.log, logging-quality-run.log,
+logging-sanitizer-run.log and logging-gcc-run.log; installation evidence is in
+logging-release-build.log, logging-linux-installed.log and logging-installed-*.log.
+
+macOS, MinGW, other architectures/libcs, cross-process contention, permission/locked
+file injection and genuine OS close-time failures remain unverified. Stream seams
+exercise final flush failures; the production file owner checks close state too.
+No locking, rotation/retention, fsync durability, child-output capture or changed
+signal/cancellation behavior is claimed. External signals can still terminate the
+runner. Changes, including the earlier dotenv increment, remain uncommitted.
+
+## Explicit dotenv-file increment
+
+Verified on 2026-10-27; see [the approved plan](dotenv-files.md) and
+[dotenv contract](configuration.md#dotenv-files).
+
+- Windows x64 MSVC 19.51.36260.0 / CMake 4.3.2: strict Debug build and all
+  **295 tests passed**, including 70 new dotenv checks. MinSizeRel release
+  compilation completed without warnings.
+- Linux x64 Alpine 3.21 / Clang 19.1.4 / CMake 3.31.1: strict build, clang-format
+  verification, and clang-tidy analysis (including dotenv.cpp) passed; all
+  **286 tests passed**, including 68 new dotenv checks.
+- The same Linux Clang toolchain passed **288 ASan/UBSan tests**, with the parser,
+  application, test helper, and sanitizer-propagation probes instrumented.
+- Linux x64 GCC 14.2.0: strict MinSizeRel build and all **286 tests passed**.
+- Coverage adds byte-exact LF/CRLF/BOM/EOF fixtures, comments, optional export,
+  literal values, empty values/files, quote/escape handling, UTF-8 values including
+  a four-byte code point, invalid/overlong/surrogate/out-of-range/truncated UTF-8,
+  NUL, malformed assignments/quotes, line diagnostics, duplicates and native
+  casing, absolute/relative/Unicode/spaced file paths, cwd independence,
+  prerequisite-generated files, precedence, PATH lookup, task isolation, read-only
+  commands, no automatic discovery, and exact/over-limit 1 MiB inputs. Parse errors
+  are checked not to print marked assignment contents.
+- Windows verifies case-insensitive replacement across file/inline layers and
+  rejection of drive-relative paths. POSIX accepts distinct case-variant names.
+  Missing/non-file inputs fail after earlier prerequisite effects, as intended.
+- Installation and installed Windows binary execution passed for inline precedence
+  and Unicode file values. Both project and parser MIT notices remain installed.
+
+The parser uses owned input/values and checked UTF-8 byte ranges; no production
+dependency or process backend was added. File keys normalize through the existing
+native name-key helper, and the runner merges into a temporary environment map
+without modifying config or process-global environment. Child PATH lookup uses
+the existing implementation. Empty files preserve the inherited environment.
+
+| Release executable | Current bytes | Current KiB | Previous bytes | Change |
+| --- | ---: | ---: | ---: | ---: |
+| Windows x64, static MSVC runtime | 374,272 | 365.5 | 365,568 | +8,704 |
+| Alpine Linux x64 GCC, shared runtime, unstripped | 126,648 | 123.7 | 115,992 | +10,656 |
+
+Runtime dependencies remain KERNEL32.dll on Windows and libstdc++.so.6,
+libgcc_s.so.1, and libc.musl-x86_64.so.1 on Alpine, verified using dumpbin/readelf.
+Sizes exclude developer tooling/shared runtimes; no performance benchmark or
+resource-budget enforcement was introduced.
+
+Commands use the existing strict, quality, sanitizer, and GCC container workflows.
+Logs beneath build/ are dotenv-windows-tests.log, dotenv-quality-run.log,
+dotenv-sanitizer-run.log, and dotenv-gcc-run.log. The Windows focused dotenv log
+is dotenv-windows-focused.log. Public examples/.env.example is explicitly selected
+by the repository workflow; private .env files are not required or auto-loaded.
+The Windows release executable ran that real configure/build/test workflow from
+outside the repository root with runtime CTest arguments; all 295 checks passed.
+The example log is build/dotenv-example-run.log.
+
+macOS, MinGW, other architectures/libcs, permission-denial/locked-file injection,
+and concurrent-file-edit races remain unverified. File reads are not atomic
+snapshots; detected growth/truncation is rejected but edits are not serialized.
+Existing cancellation/descendant-cleanup and total-memory limits remain unchanged.
+Changes remain uncommitted for review.
+
 ## MIT licensing and usage documentation
 
 Verified on 2026-10-26. Added the project's MIT license (2026 Yeo Wen Qin), retained
@@ -30,7 +142,7 @@ The pending benchmark proposal was replaced with first-use/release readiness
 after user feedback. No benchmark framework, release publication, or CI activation
 was performed.
 
-## Runtime task-argument increment (current)
+## Runtime task-argument increment (historical baseline)
 
 Verified on 2026-10-26; see [the approved plan](runtime-arguments.md) and
 [configuration contract](configuration.md).

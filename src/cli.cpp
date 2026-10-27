@@ -23,18 +23,24 @@ Defaults to tatr.toml in the current directory; no parent-directory search.
 Run executes argument arrays directly, in dependency order, stopping on failure.
 Task cwd paths resolve from the configuration file's directory; absent inherits cwd.
 Task env tables override selected inherited variables for that child only.
+Task env_file paths resolve from the config directory; inline env wins over file values.
+Run action records go to stderr by default; logging.file enables append-only log files.
 Arguments after -- are appended literally to the target command, not prerequisites.
 )";
 
 } // namespace
 
-int run_cli(std::span<const std::string> arguments, std::ostream &out) {
+int run_cli(std::span<const std::string> arguments, std::ostream &out, std::ostream &err) {
     if (arguments.empty() || (arguments.size() == 1 && arguments[0] == "--help")) {
-        out << help;
+        out << help << std::flush;
+        if (!out)
+            throw std::runtime_error("cannot write task output");
         return 0;
     }
     if (arguments.size() == 1 && arguments[0] == "--version") {
-        out << "tatr " << TATR_VERSION << '\n';
+        out << "tatr " << TATR_VERSION << '\n' << std::flush;
+        if (!out)
+            throw std::runtime_error("cannot write task output");
         return 0;
     }
     std::filesystem::path file = "tatr.toml";
@@ -81,7 +87,7 @@ int run_cli(std::span<const std::string> arguments, std::ostream &out) {
     // Validate the complete file and plan before printing any task output.
     const auto config = load_config(file);
     if (command == "run") {
-        run_task(config, target, runtime_arguments);
+        return run_task(config, target, runtime_arguments, err);
     } else if (command == "plan") {
         const auto order = plan_task(config, target);
         for (const auto &name : order) {
@@ -96,6 +102,7 @@ int run_cli(std::span<const std::string> arguments, std::ostream &out) {
             out << '\n';
         }
     }
+    out.flush();
     if (!out) {
         throw std::runtime_error("cannot write task output");
     }

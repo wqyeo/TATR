@@ -13,7 +13,7 @@ class TaskFailure : public std::runtime_error {
     using std::runtime_error::runtime_error;
 };
 
-void run_task(const Config &config, std::string_view target,
-              std::span<const std::string> arguments = {});
+int run_task(const Config &config, std::string_view target, std::span<const std::string> arguments,
+             std::ostream &console);
 
 } // namespace tatr

@@ -48,11 +48,33 @@ exec = ["cmake", "--preset", "dev"]
 cwd = "."
 ```
 
-Tasks support optional `description`, `depends`, `exec`, `cwd`, and `env` fields. `plan TASK`
+Tasks support optional `description`, `depends`, `exec`, `cwd`, `env`, and `env_file` fields. `plan TASK`
 prints prerequisites in their declared order, each once, with the target last.
 `run TASK` executes that order; tasks without `exec` group their prerequisites.
 All commands validate the entire configuration first. `list` and `plan` execute
 nothing. See [configuration and CLI rules](docs/configuration.md).
+
+`run` logs TATR actions to the current console's stderr by default, using one
+logfmt-style record per line with UTC timestamps. To also keep an append-only file:
+
+```toml
+[logging]
+level = "info" # info, warn, error, off
+console = true
+
+[logging.file]
+directory = "build/logs"
+filename = "tatr-{date}-{time}-{pid}.log"
+```
+
+The directory resolves from the TOML directory. Filename tokens expand once at
+run start: `{date}` is UTC YYYY-MM-DD, `{time}` is HHmmssfffZ (milliseconds), and
+`{pid}` is the process ID. Use `tatr.log` for a fixed name, or `tatr-{date}.log`
+for daily append. Set `console = false` for file-only logs, or `level = "off"`
+to suppress action records. Child stdout/stderr still go directly to the console;
+these files contain TATR actions only. There is no rotation/retention, and log
+write failures stop further execution with exit 2. See the
+[full logging contract](docs/configuration.md#action-logging).
 
 `run TASK -- ARG...` appends literal arguments to that task's configured command.
 Prerequisites keep their declared commands. After `--`, flags such as `--file`
@@ -63,8 +85,9 @@ Commands are argument arrays, with no implicit shell or expansion. Programs inhe
 your environment and standard I/O. Working directories are inherited unless `cwd`
 is provided; relative values resolve from the configuration file's directory.
 The checked-in example uses `cwd = ".."` to run from the repository root regardless
-of the caller's directory. Exit codes are 0 for success, 1 for a failed child (original status
-reported on stderr), and 2 for configuration, CLI, or launch errors.
+of the caller's directory. Exit codes are 0 for success, 1 for a failed child
+(original status in action logs, on stderr by default), and 2 for configuration,
+CLI, launch, or logging errors.
 
 An executable task can override selected inherited environment variables:
 
@@ -74,6 +97,35 @@ env = { BUILD_MODE = "release", EMPTY_VALUE = "" }
 
 Values remain literal strings. Overrides apply only to that child; later tasks
 retain their own inherited environment. PATH overrides affect executable lookup.
+
+To load a dotenv file, name it explicitly on an executable task:
+
+```toml
+[tasks.build]
+exec = ["my-build-tool"]
+env_file = ".env"
+env = { BUILD_MODE = "release" }
+```
+
+For example, `.env` could contain:
+
+```dotenv
+BUILD_MODE=development
+API_URL="http://localhost:8080"
+```
+
+Precedence is inherited environment, then file values, then inline `env`; the
+example therefore sets BUILD_MODE to release. Relative env_file paths resolve
+from the TOML directory, independently of cwd. Files load when the task starts,
+after prerequisites; a missing or malformed file stops the workflow with exit 2.
+List/plan do not read env files, and no .env file is discovered automatically.
+
+The parser supports comments, optional export, empty values, and single/double
+quotes in a documented single-line UTF-8 dialect. Values are not interpolated.
+See [dotenv rules](docs/configuration.md#dotenv-files) and the public
+[.env.example](examples/.env.example). This repository Git-ignores local `.env`/`.env.*` files;
+the example is retained. The checked-in workflow explicitly loads this public
+example, so it needs no private env file to run.
 
 ## Build destinations and file operations
 
@@ -213,6 +265,7 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - `src/cli.*`: CLI parsing and output.
 - `src/config.*`: configuration model and validation.
 - `src/environment.hpp`: portable override names and environment map type.
+- `src/dotenv.*`: bounded dotenv file loading and parsing.
 - `src/planner.*`: dependency validation and deterministic planning.
 - `src/runner.*`: sequential task execution and failure reporting.
 - `src/process.*`: native Windows/POSIX process launching and waiting.
@@ -221,6 +274,7 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - `CMakeLists.txt` and `CMakePresets.json`: build and installation setup.
 - `mise.toml`: optional developer tooling and build tasks.
 - `examples/tatr.toml`: supported configuration example.
+- `examples/.env.example`: public dotenv values for the workflow example.
 - `examples/file-operations.toml`: runnable copy/move example using CMake.
 - [Design notes](docs/design.md): problem statement, principles, and open decisions.
 - [Parser and schema decisions](docs/configuration-decisions.md): approved decisions and comparison.
@@ -230,6 +284,7 @@ toolchains, commands, runtime dependencies, and limits of those measurements.
 - [Working-directory increment](docs/task-working-directories.md): completed approved scope.
 - [Environment increment](docs/task-environment.md): completed approved scope.
 - [Runtime-argument increment](docs/runtime-arguments.md): completed approved scope.
+- [Dotenv increment](docs/dotenv-files.md): completed approved scope.
 - [Development checks](docs/development.md): local gates and proposed CI workflow.
 - [Next increment](docs/next-increment.md): proposal awaiting review.
 

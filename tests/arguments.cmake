@@ -184,7 +184,8 @@ if(NOT command STREQUAL "")
     string(APPEND source "exec = [${command}]\n")
 endif()
 string(APPEND source "${after}${extra}")
-file(WRITE "${config}" "${source}")
+# These process/config regression cases opt out of action records; logging has its own suite.
+file(WRITE "${config}" "${source}\n[logging]\nlevel = 'off'\n")
 
 # Literal invocations preserve empty arguments and embedded semicolons, which
 # CMake list expansion would otherwise discard or split.

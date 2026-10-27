@@ -201,7 +201,8 @@ else()
     endif()
 endif()
 
-file(WRITE "${config}" "${source}")
+# These process/config regression cases opt out of action records; logging has its own suite.
+file(WRITE "${config}" "${source}\n[logging]\nlevel = 'off'\n")
 if(CASE STREQUAL "empty_target")
     execute_process(COMMAND "${TATR}" run "" WORKING_DIRECTORY "${TEST_ROOT}"
         INPUT_FILE "${input}" RESULT_VARIABLE code OUTPUT_VARIABLE output

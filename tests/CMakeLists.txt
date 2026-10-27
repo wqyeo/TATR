@@ -18,6 +18,39 @@ set(cases
     depends_self_cycle depends_cycle depends_disconnected_cycle
 )
 
+add_executable(tatr_test_logging logging.cpp)
+target_link_libraries(tatr_test_logging PRIVATE tatr_core)
+set_target_properties(tatr_test_logging PROPERTIES CXX_EXTENSIONS OFF)
+if(MSVC)
+    set_property(TARGET tatr_test_logging PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_options(tatr_test_logging PRIVATE /W4 /permissive- /utf-8)
+else()
+    target_compile_options(tatr_test_logging PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+tatr_developer_checks(tatr_test_logging)
+if(MINGW)
+    target_link_options(tatr_test_logging PRIVATE -municode)
+endif()
+add_test(NAME logging.streams_and_rendering COMMAND tatr_test_logging
+    $<TARGET_FILE:tatr_test_child> "${CMAKE_CURRENT_BINARY_DIR}/logging/streams")
+set(logging_cases default file append file_only unicode tokens defaults absolute cwd child_output child_io escaped_task off off_failure warn error
+    failure filtered_failure file_only_failure launch dotenv group shared open_failure list plan unknown_target group_args
+    invalid_level level_type console_type silent logging_type file_type unknown_field
+    unknown_file_field directory_type filename_type empty_directory nul_directory bad_filename
+    bad_token reserved)
+if(WIN32)
+    list(APPEND logging_cases drive_relative large_status)
+else()
+    list(APPEND logging_cases signal file_write_failure)
+endif()
+foreach(case IN LISTS logging_cases)
+    add_test(NAME logging.${case} COMMAND ${CMAKE_COMMAND}
+        "-DTATR=$<TARGET_FILE:tatr>" "-DCHILD=$<TARGET_FILE:tatr_test_child>"
+        "-DCASE=${case}" "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/logging/${case}"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/logging.cmake)
+endforeach()
+
 foreach(case IN LISTS cases)
     add_test(NAME cli.${case} COMMAND ${CMAKE_COMMAND}
         "-DTATR=$<TARGET_FILE:tatr>"
@@ -25,6 +58,28 @@ foreach(case IN LISTS cases)
         "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cases/${case}"
         "-DVERSION=${PROJECT_VERSION}"
         -P ${CMAKE_CURRENT_SOURCE_DIR}/cli.cmake)
+endforeach()
+
+set(dotenv_cases
+    basic inherited inline_precedence inline_empty empty_file empty_value whitespace equals_value
+    comment full_comments hash_literal hash_quoted single_quotes double_quotes escapes literal
+    unquoted_quotes export_prefix export_name crlf bom no_final_newline
+    duplicate case_variants malformed unknown_escape unclosed_quote trailing_text multiline
+    name_digit name_dash name_unicode name_empty nul_value invalid_utf8 invalid_continuation
+    overlong_utf8 surrogate_utf8 high_utf8 truncated_utf8 lone_cr bare_trailing_cr error_line
+    missing not_file generated_file absolute_file unicode_file relative_config cwd_independent
+    isolation no_discovery list_missing plan_missing list_malformed unrelated_missing
+    type_number type_array empty_path nul_path grouping invalid_unrelated
+    path_file path_inline path_empty size_limit size_over_limit inline_does_not_hide_error
+)
+if(WIN32)
+    list(APPEND dotenv_cases windows_layer_casing drive_relative)
+endif()
+foreach(case IN LISTS dotenv_cases)
+    add_test(NAME dotenv.${case} COMMAND ${CMAKE_COMMAND}
+        "-DTATR=$<TARGET_FILE:tatr>" "-DCHILD=$<TARGET_FILE:tatr_test_child>"
+        "-DCASE=${case}" "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/dotenv/${case}"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/dotenv.cmake)
 endforeach()
 
 set(argument_cases

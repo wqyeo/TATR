@@ -68,8 +68,12 @@ exec = ["cmake", "--build", "--preset", "dev"]
 6. Add task environment overrides with explicit inheritance and lookup semantics
    (implemented).
 7. Append literal runtime arguments to the requested task (implemented).
-8. Dogfood the existing workflows and establish first-use/release readiness
-   (proposed). Performance benchmarking is deferred.
+8. Load an explicit dotenv file per executable task (implemented).
+9. Add console action logging and optional TOML-configured log files
+   ([implemented](action-logging.md)).
+10. Dogfood the existing workflows and establish first-use/release readiness
+    ([pending proposal](next-increment.md)). Performance benchmarking
+    remains deferred.
 
 Each increment needs review before implementation. Tests should cover meaningful
 behavior as it is introduced. Parallel execution, caching, remote execution,

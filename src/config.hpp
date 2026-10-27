@@ -1,6 +1,7 @@
 #pragma once
 
 #include "environment.hpp"
+#include "logging.hpp"
 
 #include <filesystem>
 #include <map>
@@ -18,9 +19,11 @@ struct Task {
     // Resolved against the config file's directory; absent inherits caller cwd.
     std::optional<std::filesystem::path> cwd;
     std::optional<EnvironmentOverrides> env;
+    std::optional<std::filesystem::path> env_file;
 };
 
 struct Config {
+    Logging logging;
     // Bytewise UTF-8 key order makes listing deterministic on every platform.
     std::map<std::string, Task> tasks;
 };

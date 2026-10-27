@@ -51,7 +51,111 @@ description = "A quoted name containing a dot"
 - The optional `env` table overrides selected inherited environment variables for
   an executable task; values must be strings and may be empty. Names must match
   `[A-Za-z_][A-Za-z0-9_]*`. NUL values and env fields on grouping tasks are rejected.
-- Unknown root/task fields are rejected. TOML duplicate keys are parse errors.
+- The optional `env_file` names one nonempty dotenv path without NUL; it requires
+  an executable task. Relative paths resolve from the TOML directory. Absolute
+  paths are accepted; Windows drive-relative paths are rejected.
+- Optional root `logging` configures action records, as described below.
+- Unknown root/task/logging fields are rejected. TOML duplicate keys are parse errors.
+
+## Action logging
+
+`run` emits synchronous logfmt-style UTF-8 `key=value` records on stderr by default.
+`list`/`plan` keep their existing stdout formats and emit no action records.
+No additional library, thread, color, or shell is involved.
+
+```toml
+[logging]
+level = "info"
+console = true
+
+[logging.file]
+directory = "build/logs"
+filename = "tatr-{date}-{time}-{pid}.log"
+```
+
+All settings are optional. Without `[logging]`, the defaults are info-level
+console logging and no file. A `[logging.file]` table enables file logging,
+defaulting to directory `logs` and filename `tatr-{date}-{time}-{pid}.log`.
+Its only supported fields are nonempty string `directory` and `filename`.
+`console` must be boolean. `level` accepts `info`, `warn`, `error`, or `off`,
+in increasing severity. A shared threshold applies to both sinks. This increment
+emits informational lifecycle events and error outcomes; no warning events are
+currently needed. `warn` and `error` therefore both suppress successful lifecycle
+records while preserving errors. Filtered logging may create an empty log file.
+
+Set `console = false` for file-only records. Without a file, console=false
+requires level=off. `off` creates no log directories/files and suppresses action
+records; operational errors still receive a minimal stderr diagnostic.
+
+Directories resolve relative to the supplied TOML file's directory, independently
+of task cwd; absolute paths work too. NUL and Windows drive-relative paths are
+rejected. Only a valid `run` creates missing directories and opens the file,
+after complete schema/graph/target/runtime-argument validation and before any
+prerequisite. `list`/`plan` validate the settings/template without accessing log
+paths. Help/version do not read the configuration. Initialization failures return
+2 before any task launches, with a direct stderr diagnostic even for file-only
+settings; TATR does not silently switch to console-only.
+
+Filename templates must be portable basenames. Separators, C0/DEL/C1 controls,
+Windows-forbidden characters (`<>:"/\\|?*`), reserved device names (including
+CON, PRN, AUX, NUL, COM1–9, LPT1–9 and their superscript-digit equivalents),
+trailing dots/spaces, dot/dot-dot, unknown tokens and malformed braces are rejected.
+The expanded name is checked too. Unicode and ordinary spaces are accepted.
+
+| Token | UTC expansion at run start | Example |
+| --- | --- | --- |
+| `{date}` | YYYY-MM-DD | `2026-10-27` |
+| `{time}` | HHmmssfffZ, milliseconds | `080000123Z` |
+| `{pid}` | Decimal native process ID | `1234` |
+| `{{` / `}}` | Literal braces | `{` / `}` |
+
+Tokens use one snapshot, expanded once; a file stays open across midnight.
+`tatr.log` appends to one file; `tatr-{date}.log` appends by UTC start date.
+Names are not guaranteed unique, including the default. Existing files are never
+truncated. Concurrent processes sharing a filename may interleave records; there
+is no locking/atomic-record guarantee. No task/env/strftime interpolation,
+directory tokens, rotation, retention, compression, or durable-storage/fsync
+guarantee is included.
+
+Records use UTC millisecond timestamps following RFC 3339, with severity meanings
+following RFC 5424's informational/warning/error terminology. This is TATR's text
+convention, not syslog wire format or universal logfmt parser compatibility.
+Fields have a fixed order; task/target/message strings are always quoted.
+Quotes, backslashes, newline/CR/tab and remaining C0/DEL/C1 controls are escaped;
+invalid UTF-8 diagnostic bytes become explicit `\xhh` escapes. Numeric fields are
+unquoted. Files are UTF-8 without BOM with LF endings. Both sinks receive the same
+TATR records, with checked writes/flushes and explicit file finalization.
+
+```text
+time=2026-10-27T08:00:00.123Z level=info event=run_started target="check"
+time=2026-10-27T08:00:00.124Z level=info event=task_started task="build"
+time=2026-10-27T08:00:01.456Z level=info event=task_finished task="build" outcome=success exit_code=0 duration_ms=1332
+time=2026-10-27T08:00:02.000Z level=info event=run_finished target="check" outcome=success duration_ms=1877
+```
+
+Valid runs, including grouping-only runs, produce run_started/run_finished.
+Only executable tasks produce task_started/task_finished; shared prerequisites
+appear once and skipped tasks have no records. task_started precedes dotenv
+loading. Steady-clock durations include dotenv loading and child execution;
+wall-clock time is used only for timestamps/names. Outcomes are `success`,
+`child_failure`, or `runner_error`. Completed children include their native
+`exit_code`, or POSIX `signal` on signal termination. Failure records include an
+escaped `message`; task outcomes and the run summary are distinct records.
+Already-logged exceptions do not produce an additional plain diagnostic.
+
+Argument arrays/runtime arguments, environment values/blocks and dotenv contents
+are not logged. Task names and diagnostic paths can disclose project metadata;
+this is not a general secret-redaction guarantee. Child stdout/stderr remain
+inherited by the console and are not captured/teed into log files. Children can
+print their own secrets. Ordering across child streams and action records is not
+guaranteed.
+
+A sink failure returns 2 and prevents the next task. Failed task_started logging
+prevents launch; failed task_finished logging occurs after the child completed.
+Earlier side effects remain. Sink failures use direct stderr fallback without
+recursive logging; if stderr also fails, exit status remains 2. Children are not
+interrupted. Pre-initialization CLI/config/target errors retain stderr diagnostics
+without creating log files. Ordinary exit codes remain 0/1/2.
 
 ## Commands
 
@@ -92,9 +196,10 @@ does not expand task-name syntax.
 
 The complete file is validated before listing/planning or launching any child, including
 missing dependencies and cycles in unrelated tasks. Errors do not produce a
-partial list or plan. Cycle diagnostics show the cycle path. Errors go to stderr,
-prefixed by `tatr:`. Configuration
-errors include the path and, where available, a source line/column or field name.
+partial list or plan. Cycle diagnostics show the cycle path. These validation errors
+go to stderr prefixed by `tatr:`. Configuration errors include the path and, where
+available, a source line/column or field name. Failures after logging starts follow
+the action-logging rules above.
 `list` and `plan` never launch a child, even when tasks contain `exec` fields.
 
 ## Sequential execution
@@ -132,7 +237,7 @@ The runner waits for each child to finish before starting the next task. Unknown
 targets and malformed arguments fail before any child runs.
 
 Children inherit stdin, stdout, and stderr, and the environment except for declared
-`env` overrides. Without `cwd`, they
+`env_file`/`env` overrides. Without `cwd`, they
 also inherit the caller's directory. With `cwd`, the rules below apply. Relative
 script arguments are interpreted by the child program from its working directory;
 TATR does not rewrite argument strings. Child output goes
@@ -149,9 +254,11 @@ platform-specific, and the interpreter controls its own quoting and expansion.
 Exit codes:
 
 - `0`: every selected task succeeded, including empty grouping tasks.
-- `1`: a child exited nonzero or was terminated by a signal. Stderr reports the
-  failing task and original status/signal. Later tasks are skipped.
-- `2`: CLI, configuration, working-directory, executable lookup, process launch, or wait failure.
+- `1`: a child exited nonzero or was terminated by a signal. Action logs report the
+  failing task and original status/signal (stderr by default, or a minimal stderr
+  diagnostic with level=off). Later tasks are skipped.
+- `2`: CLI, configuration, working-directory, executable lookup, process launch,
+  wait, or logging failure.
   Later tasks are skipped. Earlier tasks may already have run when a launch fails;
   commands are not pre-launched to check their availability.
 
@@ -214,8 +321,9 @@ task. Unspecified values are preserved. Empty strings set a variable to an empty
 value; no deletion syntax is provided. An empty table is valid on executable
 tasks. Field types and names are validated across the whole configuration before
 any task runs. Neither list nor plan constructs a child environment or performs
-executable lookup. Values undergo no interpolation, shell expansion, or dotenv
-loading. TATR never changes its own environment; prerequisites cannot pass new
+executable lookup. Values undergo no interpolation or shell expansion. Files are
+loaded only through explicit env_file fields as described below. TATR never
+changes its own environment; prerequisites cannot pass new
 variables to later tasks by altering their own process environments.
 
 POSIX override names are case-sensitive. Windows names are case-insensitive, and
@@ -247,6 +355,64 @@ to 32,767 UTF-16 code units by TATR. POSIX argument/environment limits are enfor
 by the OS. Encoding, size, and launch failures return 2 and stop later tasks;
 earlier side effects remain. TATR does not print environment values in its
 validation or native launch diagnostics. Child programs control their own output.
+
+### Dotenv files
+
+```toml
+[tasks.build]
+exec = ["my-build-tool"]
+env_file = ".env"
+env = { BUILD_MODE = "release" }
+```
+
+Only one explicit file is supported per executable task. There is no automatic
+discovery, global dotenv scope, optional-file mode, or env-file array. Paths resolve
+from the supplied TOML path's directory, independently of task cwd. Files must be
+readable regular files; symlinks to regular files are accepted. The loader does
+not canonicalize their paths.
+
+The task file schema is validated for all tasks before execution. A dotenv file
+is opened and parsed immediately before its task launches, after prerequisites,
+allowing a prerequisite to generate it. Each task reads its own file at that time;
+there is no cross-task file cache. List/plan do not open env files or check their
+availability; unrelated tasks' files are not read. Missing/unreadable files and
+parse failures stop execution with exit 2; earlier side effects remain. Invalid
+files still fail when inline env would override their values.
+
+Precedence is **inherited environment < file values < inline env**. Inline values
+may intentionally replace a file value, including differently cased Windows
+names. POSIX names remain case-sensitive. The file layer uses the same portable
+identifier rule as inline env, and duplicate names within a file are errors
+(case-insensitive on Windows). Empty files and empty values are valid. Effective
+PATH values from either layer use the existing child-directory-aware lookup.
+TATR and subsequent tasks' environments are never mutated.
+
+TATR's dotenv dialect is deliberately explicit:
+
+- Files must be valid UTF-8 with an optional initial UTF-8 BOM. Only LF or CRLF
+  line endings are accepted; a final newline is optional. NUL is rejected anywhere.
+  Each file may contain at most 1 MiB (1,048,576 bytes), checked before allocating
+  the input buffer. This is a per-file input limit, not a total memory budget.
+- Blank lines and lines beginning with # after spaces/tabs are ignored. An
+  optional `export` token followed by spaces/tabs is accepted before an assignment.
+- Assignments split at the first `=`. Spaces/tabs around the name and immediately
+  after `=` are ignored. Names must match `[A-Za-z_][A-Za-z0-9_]*`.
+- Unquoted values retain internal whitespace and quotes, with outer spaces/tabs
+  trimmed. A # starts a comment at value start or after a space/tab; an adjacent
+  # is literal (`NAME=a#b` sets `a#b`).
+- A single/double quote at the first nonspace value position delimits the value.
+  Single quotes preserve literal bytes, including backslashes and #. Double
+  quotes support only `\\`, `\"`, `\n`, `\r`, and `\t` escapes. Unknown escapes
+  are errors. After closing quotes, only spaces/tabs or a # comment are allowed.
+- Physical multiline quoted values, concatenated quoted fragments, and line
+  joining are unsupported. Escaped newlines inside double-quoted values are
+  supported. `$NAME`, `${NAME}`, `%NAME%`, and command substitutions remain literal;
+  the file is never executed as a shell script.
+
+Errors identify the task and file, with a line number where available, without
+printing assignment lines or values. File reads are not an atomic snapshot:
+truncation/read failures or detected growth are errors, but concurrent file edits
+are not otherwise serialized. Use a completed file before launching the task.
 
 ### Native execution and interruption
 

@@ -3,6 +3,12 @@
 # Append CTest options with: run check -- --parallel 2
 version = 1
 
+# Action records go to stderr by default. Uncomment to also append log files.
+# Directory is relative to this TOML file, independently of each task's cwd.
+# [logging.file]
+# directory = "../build/logs"
+# filename = "tatr-{date}-{time}-{pid}.log"
+
 [tasks.configure]
 description = "Configure the development build"
 exec = ["cmake", "--preset", "dev"]
@@ -19,4 +25,4 @@ description = "Check the project"
 depends = ["build"]
 exec = ["ctest", "--preset", "dev"]
 cwd = ".."
-env = { CTEST_OUTPUT_ON_FAILURE = "1" }
+env_file = ".env.example"

@@ -50,6 +50,31 @@ int main(int argc, char **argv) {
         out << args[2] << '\n';
         if (!out)
             return 91;
+    } else if (mode == "copy_file" && args.size() == 3) {
+        std::filesystem::copy_file(path(args[1]), path(args[2]),
+                                   std::filesystem::copy_options::overwrite_existing);
+    } else if ((mode == "write_hex" || mode == "append_hex") && args.size() == 3) {
+        const auto digit = [](char value) {
+            if (value >= '0' && value <= '9')
+                return value - '0';
+            if (value >= 'a' && value <= 'f')
+                return value - 'a' + 10;
+            return -1;
+        };
+        if (args[2].size() % 2 != 0)
+            return 98;
+        std::ofstream out(path(args[1]),
+                          std::ios::binary |
+                              (mode == "append_hex" ? std::ios::app : std::ios::trunc));
+        for (std::size_t i = 0; i < args[2].size(); i += 2) {
+            const auto high = digit(args[2][i]);
+            const auto low = digit(args[2][i + 1]);
+            if (high < 0 || low < 0)
+                return 99;
+            out.put(static_cast<char>((high << 4) | low));
+        }
+        if (!out)
+            return 100;
     } else if (mode == "mkdir" && args.size() == 2) {
         std::filesystem::create_directories(path(args[1]));
     } else if (mode == "io") {

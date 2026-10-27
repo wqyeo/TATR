@@ -170,7 +170,8 @@ if(NOT cwd STREQUAL "")
     string(APPEND source "cwd = ${cwd}\n")
 endif()
 string(APPEND source "${after}${extra}")
-file(WRITE "${config}" "${source}")
+# These process/config regression cases opt out of action records; logging has its own suite.
+file(WRITE "${config}" "${source}\n[logging]\nlevel = 'off'\n")
 execute_process(COMMAND "${TATR}" ${arguments} WORKING_DIRECTORY "${caller}"
     RESULT_VARIABLE code OUTPUT_VARIABLE output ERROR_VARIABLE error ENCODING UTF-8 TIMEOUT 15)
 assert_no_sanitizer_diagnostic("${output}" "${error}")

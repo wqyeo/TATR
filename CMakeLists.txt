@@ -15,7 +15,7 @@ target_include_directories(tomlc17 SYSTEM PUBLIC third_party/tomlc17)
 set_target_properties(tomlc17 PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 tatr_sanitizers(tomlc17)
 
-add_library(tatr_core STATIC src/config.cpp src/cli.cpp src/planner.cpp src/process.cpp src/runner.cpp)
+add_library(tatr_core STATIC src/config.cpp src/cli.cpp src/dotenv.cpp src/logging.cpp src/planner.cpp src/process.cpp src/runner.cpp)
 target_include_directories(tatr_core PUBLIC src)
 target_link_libraries(tatr_core PRIVATE tomlc17)
 target_compile_features(tatr_core PUBLIC cxx_std_23)

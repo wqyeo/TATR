@@ -100,7 +100,7 @@ Config load_config(const std::filesystem::path &file) {
         throw std::runtime_error(path + ": " + document.result.errmsg);
     }
     const auto root = document.result.toptab;
-    check_fields(root, {"version", "tasks"}, path, "configuration");
+    check_fields(root, {"version", "tasks", "logging"}, path, "configuration");
     const auto version = toml_get(root, "version");
     if (version.type != TOML_INT64 || version.u.int64 != 1) {
         invalid(path, version, "version", "expected integer 1");
@@ -110,6 +110,82 @@ Config load_config(const std::filesystem::path &file) {
         invalid(path, tasks, "tasks", "expected a table");
     }
     Config config;
+    const auto logging = toml_get(root, "logging");
+    if (logging.type != TOML_UNKNOWN) {
+        if (logging.type != TOML_TABLE) {
+            invalid(path, logging, "logging", "expected a table");
+        }
+        check_fields(logging, {"level", "console", "file"}, path, "logging");
+        const auto level = toml_get(logging, "level");
+        if (level.type != TOML_UNKNOWN) {
+            if (level.type != TOML_STRING) {
+                invalid(path, level, "logging.level", "expected info, warn, error, or off");
+            }
+            const std::string_view text{level.u.str.ptr, static_cast<std::size_t>(level.u.str.len)};
+            if (text == "info")
+                config.logging.level = LogLevel::info;
+            else if (text == "warn")
+                config.logging.level = LogLevel::warn;
+            else if (text == "error")
+                config.logging.level = LogLevel::error;
+            else if (text == "off")
+                config.logging.level = LogLevel::off;
+            else
+                invalid(path, level, "logging.level", "expected info, warn, error, or off");
+        }
+        const auto console = toml_get(logging, "console");
+        if (console.type != TOML_UNKNOWN) {
+            if (console.type != TOML_BOOLEAN) {
+                invalid(path, console, "logging.console", "expected a boolean");
+            }
+            config.logging.console = console.u.boolean;
+        }
+        const auto output = toml_get(logging, "file");
+        if (output.type != TOML_UNKNOWN) {
+            if (output.type != TOML_TABLE) {
+                invalid(path, output, "logging.file", "expected a table");
+            }
+            check_fields(output, {"directory", "filename"}, path, "logging.file");
+            config.logging.file.emplace();
+            for (const auto key : {"directory", "filename"}) {
+                const auto value = toml_get(output, key);
+                if (value.type == TOML_UNKNOWN)
+                    continue;
+                const auto context = "logging.file." + std::string{key};
+                if (value.type != TOML_STRING || value.u.str.len == 0) {
+                    invalid(path, value, context, "expected a nonempty string");
+                }
+                const std::string text{value.u.str.ptr, static_cast<std::size_t>(value.u.str.len)};
+                if (text.find('\0') != std::string::npos) {
+                    invalid(path, value, context, "NUL characters are not allowed");
+                }
+                if (std::string_view{key} == "filename") {
+                    config.logging.file->filename = text;
+                } else {
+                    config.logging.file->directory =
+                        std::filesystem::path{std::u8string{text.begin(), text.end()}};
+                }
+            }
+            auto &directory = config.logging.file->directory;
+#ifdef _WIN32
+            if (directory.has_root_name() && !directory.has_root_directory()) {
+                invalid(path, output, "logging.file.directory",
+                        "drive-relative paths are not supported");
+            }
+#endif
+            directory = std::filesystem::absolute(file).parent_path() / directory;
+            try {
+                (void)log_filename(config.logging.file->filename,
+                                   std::chrono::system_clock::time_point{}, 1);
+            } catch (const std::runtime_error &error) {
+                invalid(path, output, "logging.file", error.what());
+            }
+        }
+        if (!config.logging.console && !config.logging.file &&
+            config.logging.level != LogLevel::off) {
+            invalid(path, logging, "logging", "console=false requires a file or level=off");
+        }
+    }
     for (int i = 0; i < tasks.u.tab.size; ++i) {
         const std::string name{tasks.u.tab.key[i], static_cast<std::size_t>(tasks.u.tab.len[i])};
         const auto task = tasks.u.tab.value[i];
@@ -121,7 +197,8 @@ Config load_config(const std::filesystem::path &file) {
         if (task.type != TOML_TABLE) {
             invalid(path, task, context, "expected a table");
         }
-        check_fields(task, {"description", "depends", "exec", "cwd", "env"}, path, context);
+        check_fields(task, {"description", "depends", "exec", "cwd", "env", "env_file"}, path,
+                     context);
         const auto description = toml_get(task, "description");
         Task model;
         if (description.type != TOML_UNKNOWN) {
@@ -232,6 +309,29 @@ Config load_config(const std::filesystem::path &file) {
                 }
                 model.env->emplace(key, std::move(value));
             }
+        }
+        const auto env_file = toml_get(task, "env_file");
+        if (env_file.type != TOML_UNKNOWN) {
+            if (env_file.type != TOML_STRING || env_file.u.str.len == 0) {
+                invalid(path, env_file, context + ".env_file",
+                        "expected a nonempty file-path string");
+            }
+            const std::string value{env_file.u.str.ptr,
+                                    static_cast<std::size_t>(env_file.u.str.len)};
+            if (value.find('\0') != std::string::npos) {
+                invalid(path, env_file, context + ".env_file", "NUL characters are not allowed");
+            }
+            if (model.exec.empty()) {
+                invalid(path, env_file, context + ".env_file", "requires an executable task");
+            }
+            const std::filesystem::path selected{std::u8string{value.begin(), value.end()}};
+#ifdef _WIN32
+            if (selected.has_root_name() && !selected.has_root_directory()) {
+                invalid(path, env_file, context + ".env_file",
+                        "drive-relative paths are not supported");
+            }
+#endif
+            model.env_file = std::filesystem::absolute(file).parent_path() / selected;
         }
         config.tasks.emplace(name, std::move(model));
     }
